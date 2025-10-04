@@ -455,7 +455,16 @@ function generateReport() {
     const formData = new FormData(document.getElementById('reportForm'));
     const params = new URLSearchParams(formData);
     
-    fetch(`<?= appUrl('reports/data') ?>?${params}`)
+    // Add cache-busting parameter
+    params.append('_t', Date.now());
+    
+    fetch(`<?= appUrl('reports/data') ?>?${params}`, {
+        cache: 'no-cache',
+        headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+        }
+    })
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);

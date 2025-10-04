@@ -93,7 +93,12 @@ class DashboardController
         // Get insights for the selected period
         $insights = $this->generateFinancialInsights($year, $month);
         
+        // Prevent caching of API responses
         header('Content-Type: application/json');
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        
         echo json_encode([
             'success' => true,
             'data' => [
@@ -135,13 +140,22 @@ class DashboardController
                     $chartData = $this->getMonthlyTrendsChart($year);
             }
             
+            // Prevent caching of API responses
             header('Content-Type: application/json');
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+            
             echo json_encode([
                 'success' => true,
                 'data' => $chartData
             ]);
         } catch (Exception $e) {
             header('Content-Type: application/json');
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+            
             echo json_encode([
                 'success' => false,
                 'error' => $e->getMessage()
@@ -290,8 +304,6 @@ class DashboardController
             ];
         }
 
-        // Debug logging for performance metrics
-        error_log("Performance metrics for {$year}-{$month}: " . json_encode($metrics));
 
         return [
             'avg_transaction_size' => Money::format($metrics['avg_ca'] ?? 0),

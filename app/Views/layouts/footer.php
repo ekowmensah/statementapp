@@ -306,6 +306,44 @@
     <?php endif; ?>
 
     <script>
+        // Cache management utilities
+        function clearBrowserCache() {
+            // Clear various browser caches
+            if ('caches' in window) {
+                caches.keys().then(function(names) {
+                    names.forEach(function(name) {
+                        caches.delete(name);
+                    });
+                });
+            }
+            
+            // Force reload from server
+            if (window.location.reload) {
+                window.location.reload(true);
+            }
+        }
+        
+        // Add cache-busting to all fetch requests globally
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            let [resource, config] = args;
+            
+            // Add cache-busting to URL if it's a string
+            if (typeof resource === 'string') {
+                const separator = resource.includes('?') ? '&' : '?';
+                resource = resource + separator + '_cb=' + Date.now();
+            }
+            
+            // Add no-cache headers to config
+            config = config || {};
+            config.cache = 'no-cache';
+            config.headers = config.headers || {};
+            config.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+            config.headers['Pragma'] = 'no-cache';
+            
+            return originalFetch(resource, config);
+        };
+
         // Enhanced logout handling with CSRF error recovery
         document.addEventListener('DOMContentLoaded', function() {
             const logoutForm = document.getElementById('logoutForm');

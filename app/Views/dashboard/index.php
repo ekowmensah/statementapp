@@ -601,7 +601,14 @@ function switchChart(chartType) {
     const year = document.getElementById('yearSelector').value;
     const month = document.getElementById('monthSelector').value;
     
-    fetch(`<?= appUrl('api/dashboard/chart') ?>?type=${chartType}&year=${year}&month=${month}`)
+    const timestamp = Date.now();
+    fetch(`<?= appUrl('api/dashboard/chart') ?>?type=${chartType}&year=${year}&month=${month}&_t=${timestamp}`, {
+        cache: 'no-cache',
+        headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+        }
+    })
         .then(response => response.json())
         .then(data => {
             if (data.success && data.data) {
@@ -678,10 +685,17 @@ function refreshDashboard() {
 }
 
 function updateKPIs(year, month) {
-    const url = `<?= appUrl('api/dashboard/kpis') ?>?year=${year}&month=${month}`;
+    const timestamp = Date.now();
+    const url = `<?= appUrl('api/dashboard/kpis') ?>?year=${year}&month=${month}&_t=${timestamp}`;
     console.log('Fetching KPIs from:', url);
     
-    return fetch(url)
+    return fetch(url, {
+        cache: 'no-cache',
+        headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+        }
+    })
         .then(response => {
             console.log('KPIs response status:', response.status);
             if (!response.ok) {
@@ -725,7 +739,6 @@ function updateKPIs(year, month) {
                 
                 // Update Performance Metrics
                 if (performanceMetrics) {
-                    console.log('Performance metrics data:', performanceMetrics);
                     const metricElements = {
                         'avg_transaction_size': document.getElementById('metric-avg-transaction'),
                         'best_day': document.getElementById('metric-best-day'),
@@ -751,10 +764,7 @@ function updateKPIs(year, month) {
                         metricElements.avg_ag2_rate.textContent = performanceMetrics.avg_ag2_rate + '%';
                     }
                     if (metricElements.total_transactions && performanceMetrics.total_transactions !== undefined) {
-                        console.log('Updating total transactions:', performanceMetrics.total_transactions);
                         metricElements.total_transactions.textContent = performanceMetrics.total_transactions;
-                    } else {
-                        console.log('Total transactions not updated - element:', metricElements.total_transactions, 'value:', performanceMetrics.total_transactions);
                     }
                     
                     console.log('Performance metrics updated successfully');
@@ -830,11 +840,18 @@ function updateTrendAnalysis(trendData) {
 
 function updateCharts(year, month) {
     const chartUpdates = [];
+    const timestamp = Date.now();
     
     // Update main chart
     if (mainChart) {
         chartUpdates.push(
-            fetch(`<?= appUrl('api/dashboard/chart') ?>?type=monthly_trends&year=${year}&month=${month}`)
+            fetch(`<?= appUrl('api/dashboard/chart') ?>?type=monthly_trends&year=${year}&month=${month}&_t=${timestamp}`, {
+                cache: 'no-cache',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            })
                 .then(response => response.json())
                 .then(data => {
                     console.log('Main chart data received:', data);
@@ -854,7 +871,13 @@ function updateCharts(year, month) {
     // Update rate chart
     if (rateChart) {
         chartUpdates.push(
-            fetch(`<?= appUrl('api/dashboard/chart') ?>?type=rate_analysis&year=${year}&month=${month}`)
+            fetch(`<?= appUrl('api/dashboard/chart') ?>?type=rate_analysis&year=${year}&month=${month}&_t=${timestamp}`, {
+                cache: 'no-cache',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            })
                 .then(response => response.json())
                 .then(data => {
                     console.log('Rate chart data received:', data);
@@ -874,7 +897,13 @@ function updateCharts(year, month) {
     // Update comparison chart
     if (compareChart) {
         chartUpdates.push(
-            fetch(`<?= appUrl('api/dashboard/chart') ?>?type=comparative_analysis&year=${year}&month=${month}`)
+            fetch(`<?= appUrl('api/dashboard/chart') ?>?type=comparative_analysis&year=${year}&month=${month}&_t=${timestamp}`, {
+                cache: 'no-cache',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            })
                 .then(response => response.json())
                 .then(data => {
                     console.log('Compare chart data received:', data);

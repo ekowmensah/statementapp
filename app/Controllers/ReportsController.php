@@ -161,21 +161,26 @@ class ReportsController
 
             error_log("Report data generated successfully");
 
-            // Handle export
             if ($export) {
                 $this->exportReport($reportData, $export, $reportType);
                 return;
             }
 
+            // Prevent caching of API responses
             header('Content-Type: application/json');
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+            
             echo json_encode([
                 'success' => true,
                 'data' => $reportData,
                 'debug' => [
                     'report_type' => $reportType,
-                    'date_range' => "$startDate to $endDate",
+                    'date_range' => $startDate . ' to ' . $endDate,
                     'group_by' => $groupBy,
-                    'data_points' => count($reportData['chart']['datasets'][0]['data'] ?? [])
+                    'data_count' => is_array($reportData) ? count($reportData) : 'N/A',
+                    'data_type' => is_array($reportData) ? gettype($reportData[0]) : gettype($reportData)
                 ]
             ]);
 
@@ -184,6 +189,10 @@ class ReportsController
             error_log("Stack trace: " . $e->getTraceAsString());
             
             header('Content-Type: application/json');
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+            
             echo json_encode([
                 'success' => false,
                 'message' => $e->getMessage(),
