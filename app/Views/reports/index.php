@@ -277,6 +277,13 @@ function appUrl($path) {
         </div>
     </div>
 
+    <!-- Detailed Analysis Section (for specific analysis reports) -->
+    <div id="detailedAnalysisSection" style="display: none;">
+        <div class="row mb-4" id="detailedAnalysisCards">
+            <!-- Dynamic detailed analysis cards will be inserted here -->
+        </div>
+    </div>
+
     <!-- Data Table -->
     <div class="row mb-4">
         <div class="col-12">
@@ -468,7 +475,7 @@ function generateReport() {
         .catch(error => {
             console.error('Error generating report:', error);
             hideLoadingState();
-            showError('Failed to generate report. Please check your connection and try again.');
+            showError('Failed to generate report. Please check your connection and try again.<br><small>Debug: Check browser console for details or visit <a href="<?= Response::url('reports/test') ?>">reports test page</a></small>');
         });
 }
 
@@ -480,6 +487,11 @@ function displayReport(reportData) {
     updateChart(reportData);
     updateInsights(reportData);
     updateDataTable(reportData);
+    
+    // Handle detailed analysis sections for new report types
+    if (reportData.type && reportData.type.includes('_analysis')) {
+        updateDetailedAnalysis(reportData);
+    }
     
     document.getElementById('chartTitle').innerHTML = 
         `<i class="bi bi-bar-chart me-2"></i>${reportData.title}`;
@@ -493,25 +505,41 @@ function updateSummaryCards(reportData) {
         const metrics = Object.keys(reportData.summary);
         const colors = ['primary', 'success', 'info', 'warning', 'danger'];
         
-        metrics.slice(0, 4).forEach((metric, index) => {
+        // Filter out non-financial metrics for detailed analysis reports
+        const financialMetrics = metrics.filter(metric => 
+            !['volatility', 'consistency_score', 'trend_direction', 'growth_rate'].includes(metric)
+        );
+        
+        // Use financial metrics first, then show analysis metrics if it's a detailed analysis
+        const displayMetrics = financialMetrics.length > 0 ? financialMetrics : metrics;
+        
+        displayMetrics.slice(0, 4).forEach((metric, index) => {
             const stats = reportData.summary[metric];
             const color = colors[index % colors.length];
             
             // Handle different data structures for different report types
-            const total = stats.total !== undefined ? stats.total : 'N/A';
-            const average = stats.average !== undefined ? stats.average : 0;
-            const max = stats.max !== undefined ? stats.max : 0;
+            let total, average, max, displayValue, subtitle;
+            
+            // Special handling for analysis metrics
+            if (['volatility', 'consistency_score', 'trend_direction', 'growth_rate'].includes(metric)) {
+                displayValue = formatAnalysisValue(metric, stats);
+                subtitle = getAnalysisSubtitle(metric, stats);
+            } else {
+                // Regular financial metrics
+                total = stats.total !== undefined ? stats.total : 'N/A';
+                average = stats.average !== undefined ? stats.average : 0;
+                max = stats.max !== undefined ? stats.max : 0;
+                displayValue = total !== 'N/A' ? formatMoney(total) : total;
+                subtitle = `Avg: ${formatMoney(average)} | Max: ${formatMoney(max)}`;
+            }
             
             cardsHtml += `
                 <div class="col-md-3">
                     <div class="card border-${color}">
                         <div class="card-body text-center">
-                            <h6 class="card-title text-${color}">${metric.toUpperCase()}</h6>
-                            <h4 class="text-${color}">${total !== 'N/A' ? formatMoney(total) : total}</h4>
-                            <small class="text-muted">
-                                Avg: ${formatMoney(average)} | 
-                                Max: ${formatMoney(max)}
-                            </small>
+                            <h6 class="card-title text-${color}">${metric.toUpperCase().replace('_', ' ')}</h6>
+                            <h4 class="text-${color}">${displayValue}</h4>
+                            <small class="text-muted">${subtitle}</small>
                         </div>
                     </div>
                 </div>
@@ -757,6 +785,339 @@ function formatMoney(amount) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
+}
+
+function formatAnalysisValue(metric, value) {
+    if (value === null || value === undefined) return 'N/A';
+    
+    switch(metric) {
+        case 'volatility':
+            return typeof value === 'number' ? `${value.toFixed(1)}%` : value;
+        case 'consistency_score':
+            return typeof value === 'number' ? `${value.toFixed(1)}%` : value;
+        case 'growth_rate':
+            return typeof value === 'number' ? `${value.toFixed(1)}%` : value;
+        case 'trend_direction':
+            return typeof value === 'string' ? value.replace('_', ' ').toUpperCase() : value;
+        default:
+            return value;
+    }
+}
+
+function getAnalysisSubtitle(metric, value) {
+    if (value === null || value === undefined) return 'No data available';
+    
+    switch(metric) {
+        case 'volatility':
+            const vol = typeof value === 'number' ? value : 0;
+            return vol < 10 ? 'Low volatility' : vol < 20 ? 'Moderate volatility' : 'High volatility';
+        case 'consistency_score':
+            const score = typeof value === 'number' ? value : 0;
+            return score > 80 ? 'Highly consistent' : score > 60 ? 'Moderately consistent' : 'Inconsistent';
+        case 'growth_rate':
+            const growth = typeof value === 'number' ? value : 0;
+            return growth > 10 ? 'Strong growth' : growth > 0 ? 'Positive growth' : growth < -10 ? 'Declining' : 'Stable';
+        case 'trend_direction':
+            return 'Trend analysis';
+        default:
+            return 'Analysis metric';
+    }
+}
+
+function updateDetailedAnalysis(reportData) {
+    const detailedSection = document.getElementById('detailedAnalysisSection');
+    const detailedCards = document.getElementById('detailedAnalysisCards');
+    
+    // Show the detailed analysis section
+    detailedSection.style.display = 'block';
+    
+    let cardsHtml = '';
+    
+    // Handle different analysis types
+    switch(reportData.type) {
+        case 'ca_analysis':
+            cardsHtml = generateCAAnalysisCards(reportData);
+            break;
+        case 'ga_analysis':
+            cardsHtml = generateGAAnalysisCards(reportData);
+            break;
+        case 're_analysis':
+            cardsHtml = generateREAnalysisCards(reportData);
+            break;
+        case 'je_analysis':
+            cardsHtml = generateJEAnalysisCards(reportData);
+            break;
+        default:
+            detailedSection.style.display = 'none';
+            return;
+    }
+    
+    detailedCards.innerHTML = cardsHtml;
+}
+
+function generateCAAnalysisCards(reportData) {
+    const { growth, benchmarks } = reportData;
+    
+    return `
+        <div class="col-md-6">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="bi bi-trending-up me-2"></i>Growth Analysis</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-${growth.rate > 0 ? 'success' : 'danger'}">${growth.rate}%</h4>
+                                <small class="text-muted">Growth Rate</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-info">${growth.trend}</h4>
+                                <small class="text-muted">Trend</small>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">Recent Avg:</small><br>
+                            <strong>${formatMoney(growth.recent_average)}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Earlier Avg:</small><br>
+                            <strong>${formatMoney(growth.earlier_average)}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>Performance Benchmarks</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-primary">${benchmarks.conversion_rate}%</h4>
+                                <small class="text-muted">Conversion Rate</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-warning">${formatMoney(benchmarks.average_deal_size)}</h4>
+                                <small class="text-muted">Avg Deal Size</small>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <span class="badge bg-${benchmarks.performance_rating === 'excellent' ? 'success' : benchmarks.performance_rating === 'good' ? 'warning' : 'danger'} fs-6">
+                            ${benchmarks.performance_rating.replace('_', ' ').toUpperCase()}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generateGAAnalysisCards(reportData) {
+    const { efficiency, cost_control } = reportData;
+    
+    return `
+        <div class="col-md-6">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0"><i class="bi bi-gear me-2"></i>Efficiency Analysis</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-warning">${efficiency.efficiency_ratio}%</h4>
+                                <small class="text-muted">Efficiency Ratio</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-info">${formatMoney(efficiency.cost_per_transaction)}</h4>
+                                <small class="text-muted">Cost per Transaction</small>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <span class="badge bg-${efficiency.efficiency_rating === 'excellent' ? 'success' : efficiency.efficiency_rating === 'good' ? 'warning' : 'danger'} fs-6">
+                            ${efficiency.efficiency_rating.replace('_', ' ').toUpperCase()}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="bi bi-shield-check me-2"></i>Cost Control</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-info">${cost_control.budget_utilization}%</h4>
+                                <small class="text-muted">Budget Utilization</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-primary">${formatMoney(cost_control.average_spend)}</h4>
+                                <small class="text-muted">Average Spend</small>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <span class="badge bg-${cost_control.control_status === 'under_control' ? 'success' : cost_control.control_status === 'monitor' ? 'warning' : 'danger'} fs-6">
+                            ${cost_control.control_status.replace('_', ' ').toUpperCase()}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generateREAnalysisCards(reportData) {
+    const { optimization, performance } = reportData;
+    
+    return `
+        <div class="col-md-6">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="bi bi-arrow-up-circle me-2"></i>Revenue Optimization</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-success">${optimization.enhancement_ratio}%</h4>
+                                <small class="text-muted">Enhancement Ratio</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-primary">${formatMoney(optimization.average_enhancement)}</h4>
+                                <small class="text-muted">Avg Enhancement</small>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <span class="badge bg-${optimization.optimization_level === 'high' ? 'success' : optimization.optimization_level === 'moderate' ? 'warning' : 'info'} fs-6">
+                            ${optimization.optimization_level.toUpperCase()} OPTIMIZATION
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Performance Tracking</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-primary">${performance.contribution_to_profit}%</h4>
+                                <small class="text-muted">Profit Contribution</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-warning">${performance.performance_score}</h4>
+                                <small class="text-muted">Performance Score</small>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <span class="badge bg-${performance.status === 'excellent' ? 'success' : performance.status === 'good' ? 'warning' : 'danger'} fs-6">
+                            ${performance.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generateJEAnalysisCards(reportData) {
+    const { allocation, optimization } = reportData;
+    
+    return `
+        <div class="col-md-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Expense Allocation</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-danger">${allocation.allocation_ratio}%</h4>
+                                <small class="text-muted">Allocation Ratio</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-warning">${formatMoney(allocation.average_allocation)}</h4>
+                                <small class="text-muted">Avg Allocation</small>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <span class="badge bg-${allocation.allocation_efficiency === 'efficient' ? 'success' : allocation.allocation_efficiency === 'moderate' ? 'warning' : 'danger'} fs-6">
+                            ${allocation.allocation_efficiency.replace('_', ' ').toUpperCase()}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-secondary">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0"><i class="bi bi-tools me-2"></i>Optimization Opportunities</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-secondary">${optimization.stability_score}</h4>
+                                <small class="text-muted">Stability Score</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-info">${optimization.volatility}%</h4>
+                                <small class="text-muted">Volatility</small>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <span class="badge bg-${optimization.optimization_potential === 'high' ? 'danger' : optimization.optimization_potential === 'moderate' ? 'warning' : 'success'} fs-6">
+                            ${optimization.optimization_potential.toUpperCase()} POTENTIAL
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
 }
 </script>
 

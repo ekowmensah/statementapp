@@ -49,6 +49,79 @@ class ReportsController
     }
 
     /**
+     * Test reports system - debugging endpoint
+     */
+    public function test()
+    {
+        Auth::requirePermission('view_reports');
+
+        echo "<h2>Reports System Test</h2>";
+
+        // Test 1: Database connection
+        echo "<h3>1. Database Connection Test</h3>";
+        try {
+            $testQuery = "SELECT 1 as test";
+            $result = $this->db->fetch($testQuery);
+            echo "<span style='color: green'>✓ Database connection successful</span><br>";
+        } catch (Exception $e) {
+            echo "<span style='color: red'>✗ Database connection failed: " . $e->getMessage() . "</span><br>";
+        }
+
+        // Test 2: Check if v_daily_txn view exists
+        echo "<h3>2. View Existence Test</h3>";
+        try {
+            $viewTest = "SELECT COUNT(*) as count FROM v_daily_txn LIMIT 1";
+            $result = $this->db->fetch($viewTest);
+            echo "<span style='color: green'>✓ v_daily_txn view exists, contains " . $result['count'] . " records</span><br>";
+        } catch (Exception $e) {
+            echo "<span style='color: red'>✗ v_daily_txn view error: " . $e->getMessage() . "</span><br>";
+            
+            // Try alternative table
+            try {
+                $altTest = "SELECT COUNT(*) as count FROM daily_txn LIMIT 1";
+                $altResult = $this->db->fetch($altTest);
+                echo "<span style='color: orange'>! Alternative: daily_txn table exists with " . $altResult['count'] . " records</span><br>";
+            } catch (Exception $altE) {
+                echo "<span style='color: red'>✗ daily_txn table also not found: " . $altE->getMessage() . "</span><br>";
+            }
+        }
+
+        // Test 3: Sample query
+        echo "<h3>3. Sample Query Test</h3>";
+        try {
+            $sampleQuery = "SELECT txn_date, ca, fi FROM v_daily_txn ORDER BY txn_date DESC LIMIT 5";
+            $sampleData = $this->db->fetchAll($sampleQuery);
+            echo "<span style='color: green'>✓ Sample query successful, " . count($sampleData) . " rows returned</span><br>";
+            echo "<pre>" . print_r($sampleData, true) . "</pre>";
+        } catch (Exception $e) {
+            echo "<span style='color: red'>✗ Sample query failed: " . $e->getMessage() . "</span><br>";
+        }
+
+        // Test 4: Date range test
+        echo "<h3>4. Date Range Test</h3>";
+        try {
+            $dateRange = $this->getAvailableDateRange();
+            echo "<span style='color: green'>✓ Date range: " . json_encode($dateRange) . "</span><br>";
+        } catch (Exception $e) {
+            echo "<span style='color: red'>✗ Date range failed: " . $e->getMessage() . "</span><br>";
+        }
+
+        // Test 5: Report generation test
+        echo "<h3>5. Report Generation Test</h3>";
+        try {
+            $testStart = date('Y-m-01');
+            $testEnd = date('Y-m-d');
+            $reportData = $this->generateFinancialSummary($testStart, $testEnd, 'day');
+            echo "<span style='color: green'>✓ Report generation successful</span><br>";
+            echo "<pre>Chart data points: " . count($reportData['chart']['datasets'][0]['data'] ?? []) . "</pre>";
+        } catch (Exception $e) {
+            echo "<span style='color: red'>✗ Report generation failed: " . $e->getMessage() . "</span><br>";
+        }
+
+        echo "<hr><p><a href='" . Response::url('reports') . "'>← Back to Reports</a></p>";
+    }
+
+    /**
      * Get report data (API)
      */
     public function getData()
@@ -56,12 +129,27 @@ class ReportsController
         Auth::requirePermission('view_reports');
 
         try {
+            // Log request parameters for debugging
+            error_log("Reports getData request: " . json_encode($_GET));
+
             // Validate and sanitize inputs
             $reportType = $_GET['report_type'] ?? 'financial_summary';
             $startDate = $_GET['start_date'] ?? date('Y-m-01');
             $endDate = $_GET['end_date'] ?? date('Y-m-d');
             $groupBy = $_GET['group_by'] ?? 'day';
             $export = $_GET['export'] ?? false;
+
+            error_log("Report parameters: type=$reportType, start=$startDate, end=$endDate, group=$groupBy");
+
+            // Test database connection
+            $testQuery = "SELECT COUNT(*) as count FROM v_daily_txn LIMIT 1";
+            try {
+                $testResult = $this->db->fetch($testQuery);
+                error_log("Database test successful: " . json_encode($testResult));
+            } catch (Exception $dbTest) {
+                error_log("Database test failed: " . $dbTest->getMessage());
+                throw new Exception("Database connection failed: " . $dbTest->getMessage());
+            }
 
             // Validate date range
             if (!$this->validateDateRange($startDate, $endDate)) {
@@ -70,6 +158,8 @@ class ReportsController
 
             // Generate report based on type
             $reportData = $this->generateReport($reportType, $startDate, $endDate, $groupBy);
+
+            error_log("Report data generated successfully");
 
             // Handle export
             if ($export) {
@@ -80,14 +170,28 @@ class ReportsController
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => true,
-                'data' => $reportData
+                'data' => $reportData,
+                'debug' => [
+                    'report_type' => $reportType,
+                    'date_range' => "$startDate to $endDate",
+                    'group_by' => $groupBy,
+                    'data_points' => count($reportData['chart']['datasets'][0]['data'] ?? [])
+                ]
             ]);
 
         } catch (Exception $e) {
+            error_log("Reports getData error: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
+                'debug' => [
+                    'error_type' => get_class($e),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ]
             ]);
         }
         exit;
@@ -99,30 +203,40 @@ class ReportsController
     private function getReportTypes()
     {
         return [
-            'financial_summary' => [
-                'name' => 'Financial Summary',
-                'description' => 'Comprehensive financial overview with all metrics',
-                'metrics' => ['ca', 'ga', 'je', 'fi', 'ag1', 'ag2', 're']
+            // 'financial_summary' => [
+            //     'name' => 'Financial Summary',
+            //     'description' => 'Comprehensive financial overview with all metrics',
+            //     'metrics' => ['ca', 'ga', 'je', 'fi', 'ag1', 'ag2', 're']
+            // ],
+            // 'profit_analysis' => [
+            //     'name' => 'Profit Analysis',
+            //     'description' => '',
+            //     'metrics' => ['fi', 're', 'ca']
+            // ],
+            // 'comparative_analysis' => [
+            //     'name' => 'Comparative Analysis',
+            //     'description' => '',
+            //     'metrics' => ['ca', 'fi', 'ga', 'je']
+            // ],
+            'ca_analysis' => [
+                'name' => 'CA Analysis',
+                'description' => '',
+                'metrics' => ['ca']
             ],
-            'profit_analysis' => [
-                'name' => 'Profit Analysis',
-                'description' => 'Focus on profitability and final income trends',
-                'metrics' => ['fi', 're', 'ca']
+            'ga_analysis' => [
+                'name' => 'GA Analysis',
+                'description' => '',
+                'metrics' => ['ga']
             ],
-            'rate_analysis' => [
-                'name' => 'Rate Analysis',
-                'description' => 'AG1 and AG2 rate performance over time',
-                'metrics' => ['rate_ag1', 'rate_ag2']
+            're_analysis' => [
+                'name' => 'RE Analysis',
+                'description' => '',
+                'metrics' => ['re']
             ],
-            'expense_breakdown' => [
-                'name' => 'Expense Breakdown',
-                'description' => 'Analysis of GA and JE expenses',
-                'metrics' => ['ga', 'je']
-            ],
-            'comparative_analysis' => [
-                'name' => 'Comparative Analysis',
-                'description' => 'Period-over-period comparison',
-                'metrics' => ['ca', 'fi', 'ga', 'je']
+            'je_analysis' => [
+                'name' => 'JE Analysis',
+                'description' => '',
+                'metrics' => ['je']
             ]
         ];
     }
@@ -137,12 +251,16 @@ class ReportsController
                 return $this->generateFinancialSummary($startDate, $endDate, $groupBy);
             case 'profit_analysis':
                 return $this->generateProfitAnalysis($startDate, $endDate, $groupBy);
-            case 'rate_analysis':
-                return $this->generateRateAnalysis($startDate, $endDate, $groupBy);
-            case 'expense_breakdown':
-                return $this->generateExpenseBreakdown($startDate, $endDate, $groupBy);
             case 'comparative_analysis':
                 return $this->generateComparativeAnalysis($startDate, $endDate, $groupBy);
+            case 'ca_analysis':
+                return $this->generateCAAnalysis($startDate, $endDate, $groupBy);
+            case 'ga_analysis':
+                return $this->generateGAAnalysis($startDate, $endDate, $groupBy);
+            case 're_analysis':
+                return $this->generateREAnalysis($startDate, $endDate, $groupBy);
+            case 'je_analysis':
+                return $this->generateJEAnalysis($startDate, $endDate, $groupBy);
             default:
                 throw new Exception('Invalid report type');
         }
@@ -153,22 +271,31 @@ class ReportsController
      */
     private function generateFinancialSummary($startDate, $endDate, $groupBy)
     {
-        $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate);
-        $data = $this->db->fetchAll($sql, [$startDate, $endDate]);
+        try {
+            $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate);
+            error_log("Financial Summary SQL: " . $sql);
+            error_log("Parameters: " . json_encode([$startDate, $endDate]));
+            
+            $data = $this->db->fetchAll($sql, [$startDate, $endDate]);
+            error_log("Query returned " . count($data) . " rows");
 
-        $chartData = $this->processChartData($data, ['ca', 'fi', 'ga', 'je'], $groupBy);
-        $summary = $this->calculateSummaryStats($data, ['ca', 'fi', 'ga', 'je']);
-        $tableData = $this->processTableData($data, $groupBy);
+            $chartData = $this->processChartData($data, ['ca', 'fi', 'ga', 'je'], $groupBy);
+            $summary = $this->calculateSummaryStats($data, ['ca', 'fi', 'ga', 'je']);
+            $tableData = $this->processTableData($data, $groupBy);
 
-        return [
-            'type' => 'financial_summary',
-            'title' => 'Financial Summary Report',
-            'period' => $this->formatPeriod($startDate, $endDate),
-            'chart' => $chartData,
-            'summary' => $summary,
-            'table' => $tableData,
-            'insights' => $this->generateFinancialInsights($summary)
-        ];
+            return [
+                'type' => 'financial_summary',
+                'title' => 'Financial Summary Report',
+                'period' => $this->formatPeriod($startDate, $endDate),
+                'chart' => $chartData,
+                'summary' => $summary,
+                'table' => $tableData,
+                'insights' => $this->generateFinancialInsights($summary)
+            ];
+        } catch (Exception $e) {
+            error_log("generateFinancialSummary error: " . $e->getMessage());
+            throw new Exception("Failed to generate financial summary: " . $e->getMessage());
+        }
     }
 
     /**
@@ -196,76 +323,82 @@ class ReportsController
         ];
     }
 
-    /**
-     * Generate Rate Analysis Report
-     */
-    private function generateRateAnalysis($startDate, $endDate, $groupBy)
-    {
-        $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate, true);
-        $data = $this->db->fetchAll($sql, [$startDate, $endDate]);
-
-        $chartData = $this->processRateChartData($data, $groupBy);
-        $summary = $this->calculateRateSummaryStats($data);
-        
-        return [
-            'type' => 'rate_analysis',
-            'title' => 'Rate Analysis Report',
-            'period' => $this->formatPeriod($startDate, $endDate),
-            'chart' => $chartData,
-            'summary' => $summary,
-            'table' => $this->processRateTableData($data, $groupBy),
-            'insights' => $this->generateRateInsights($summary)
-        ];
-    }
-
-    /**
-     * Generate Expense Breakdown Report
-     */
-    private function generateExpenseBreakdown($startDate, $endDate, $groupBy)
-    {
-        $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate);
-        $data = $this->db->fetchAll($sql, [$startDate, $endDate]);
-
-        $chartData = $this->processChartData($data, ['ga', 'je'], $groupBy);
-        $summary = $this->calculateSummaryStats($data, ['ga', 'je', 'ca']);
-        
-        // Calculate expense ratios
-        $expenseRatios = $this->calculateExpenseRatios($data);
-        
-        return [
-            'type' => 'expense_breakdown',
-            'title' => 'Expense Breakdown Report',
-            'period' => $this->formatPeriod($startDate, $endDate),
-            'chart' => $chartData,
-            'summary' => array_merge($summary, $expenseRatios),
-            'table' => $this->processTableData($data, $groupBy),
-            'insights' => $this->generateExpenseInsights($summary, $expenseRatios)
-        ];
-    }
 
     /**
      * Generate Comparative Analysis Report
      */
     private function generateComparativeAnalysis($startDate, $endDate, $groupBy)
     {
-        // Get current period data
-        $currentData = $this->getComparativePeriodData($startDate, $endDate, $groupBy);
-        
-        // Get previous period data for comparison
-        $previousPeriod = $this->calculatePreviousPeriod($startDate, $endDate);
-        $previousData = $this->getComparativePeriodData($previousPeriod['start'], $previousPeriod['end'], $groupBy);
-        
-        $comparison = $this->calculatePeriodComparison($currentData, $previousData);
-        
-        return [
-            'type' => 'comparative_analysis',
-            'title' => 'Comparative Analysis Report',
-            'period' => $this->formatPeriod($startDate, $endDate),
-            'current_period' => $currentData,
-            'previous_period' => $previousData,
-            'comparison' => $comparison,
-            'insights' => $this->generateComparativeInsights($comparison)
-        ];
+        try {
+            error_log("Comparative Analysis: start=$startDate, end=$endDate, group=$groupBy");
+            
+            // Get current period data
+            error_log("Getting current period data...");
+            $currentData = $this->getComparativePeriodData($startDate, $endDate, $groupBy);
+            error_log("Current data rows: " . count($currentData['chart']['datasets'][0]['data'] ?? []));
+            
+            // Simple previous period calculation (30 days back)
+            error_log("Calculating simple previous period...");
+            $prevStart = date('Y-m-d', strtotime($startDate . ' -30 days'));
+            $prevEnd = date('Y-m-d', strtotime($endDate . ' -30 days'));
+            error_log("Simple previous period: $prevStart to $prevEnd");
+            
+            error_log("Getting previous period data...");
+            $previousData = $this->getComparativePeriodData($prevStart, $prevEnd, $groupBy);
+            error_log("Previous data rows: " . count($previousData['chart']['datasets'][0]['data'] ?? []));
+            
+            // Simple comparison
+            $currentTotal = $currentData['summary']['ca']['total'] ?? 0;
+            $previousTotal = $previousData['summary']['ca']['total'] ?? 0;
+            $change = $previousTotal > 0 ? (($currentTotal - $previousTotal) / $previousTotal) * 100 : 0;
+            
+            $comparison = [
+                'ca' => [
+                    'current' => $currentTotal,
+                    'previous' => $previousTotal,
+                    'change' => $change,
+                    'trend' => $change > 0 ? 'up' : ($change < 0 ? 'down' : 'stable')
+                ]
+            ];
+            
+            error_log("Simple comparison calculated: " . json_encode($comparison));
+            
+            $insights = [
+                [
+                    'type' => $change > 0 ? 'success' : 'info',
+                    'title' => 'CA Comparison',
+                    'message' => sprintf('CA has %s by %.1f%% compared to previous period', 
+                        $change > 0 ? 'increased' : 'decreased', abs($change))
+                ]
+            ];
+            
+            return [
+                'type' => 'comparative_analysis',
+                'title' => 'Comparative Analysis Report',
+                'period' => $this->formatPeriod($startDate, $endDate),
+                'current_period' => $currentData,
+                'previous_period' => $previousData,
+                'comparison' => $comparison,
+                'insights' => $insights,
+                'chart' => [
+                    'type' => 'bar',
+                    'data' => [
+                        'labels' => ['Current Period', 'Previous Period'],
+                        'datasets' => [
+                            [
+                                'label' => 'CA Amount',
+                                'data' => [$currentTotal, $previousTotal],
+                                'backgroundColor' => ['#667eea', '#764ba2']
+                            ]
+                        ]
+                    ]
+                ]
+            ];
+        } catch (Exception $e) {
+            error_log("generateComparativeAnalysis error: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            throw new Exception("Failed to generate comparative analysis: " . $e->getMessage());
+        }
     }
 
     /**
@@ -564,181 +697,6 @@ class ReportsController
     }
 
     /**
-     * Process rate chart data
-     */
-    private function processRateChartData($data, $groupBy)
-    {
-        $labels = [];
-        $ag1Data = [];
-        $ag2Data = [];
-        
-        foreach ($data as $row) {
-            $labels[] = $this->formatPeriodLabel($row['period_key'], $groupBy);
-            $ag1Data[] = round(($row['avg_rate_ag1'] ?? 0) * 100, 2);
-            $ag2Data[] = round(($row['avg_rate_ag2'] ?? 0) * 100, 2);
-        }
-        
-        return [
-            'type' => 'line',
-            'data' => [
-                'labels' => $labels,
-                'datasets' => [
-                    [
-                        'label' => 'AG1 Rate (%)',
-                        'data' => $ag1Data,
-                        'borderColor' => '#007bff',
-                        'backgroundColor' => 'rgba(0, 123, 255, 0.1)',
-                        'borderWidth' => 2,
-                        'fill' => false,
-                        'tension' => 0.4
-                    ],
-                    [
-                        'label' => 'AG2 Rate (%)',
-                        'data' => $ag2Data,
-                        'borderColor' => '#28a745',
-                        'backgroundColor' => 'rgba(40, 167, 69, 0.1)',
-                        'borderWidth' => 2,
-                        'fill' => false,
-                        'tension' => 0.4
-                    ]
-                ]
-            ]
-        ];
-    }
-
-    /**
-     * Calculate rate summary statistics
-     */
-    private function calculateRateSummaryStats($data)
-    {
-        $ag1Rates = array_column($data, 'avg_rate_ag1');
-        $ag2Rates = array_column($data, 'avg_rate_ag2');
-        
-        // Also get the actual AG1 and AG2 amounts for totals
-        $ag1Amounts = array_column($data, 'total_ag1');
-        $ag2Amounts = array_column($data, 'total_ag2');
-        
-        return [
-            'ag1' => [
-                'total' => array_sum($ag1Amounts),
-                'average' => count($ag1Rates) > 0 ? array_sum($ag1Rates) / count($ag1Rates) * 100 : 0,
-                'max' => count($ag1Rates) > 0 ? max($ag1Rates) * 100 : 0,
-                'min' => count($ag1Rates) > 0 ? min($ag1Rates) * 100 : 0,
-                'count' => count($ag1Rates),
-                'volatility' => $this->calculateVolatility($ag1Rates)
-            ],
-            'ag2' => [
-                'total' => array_sum($ag2Amounts),
-                'average' => count($ag2Rates) > 0 ? array_sum($ag2Rates) / count($ag2Rates) * 100 : 0,
-                'max' => count($ag2Rates) > 0 ? max($ag2Rates) * 100 : 0,
-                'min' => count($ag2Rates) > 0 ? min($ag2Rates) * 100 : 0,
-                'count' => count($ag2Rates),
-                'volatility' => $this->calculateVolatility($ag2Rates)
-            ]
-        ];
-    }
-
-    /**
-     * Process rate table data
-     */
-    private function processRateTableData($data, $groupBy)
-    {
-        $tableData = [];
-        
-        foreach ($data as $row) {
-            $tableData[] = [
-                'period' => $this->formatPeriodLabel($row['period_key'], $groupBy),
-                'transactions' => $row['transaction_count'],
-                'ag1_rate' => round(($row['avg_rate_ag1'] ?? 0) * 100, 2),
-                'ag2_rate' => round(($row['avg_rate_ag2'] ?? 0) * 100, 2),
-                'total_ca' => $row['total_ca'],
-                'total_fi' => $row['total_fi']
-            ];
-        }
-        
-        return $tableData;
-    }
-
-    /**
-     * Generate rate insights
-     */
-    private function generateRateInsights($summary)
-    {
-        $insights = [];
-        
-        if (isset($summary['ag1'])) {
-            $ag1Volatility = $summary['ag1']['volatility'];
-            if ($ag1Volatility > 0.5) {
-                $insights[] = [
-                    'type' => 'warning',
-                    'title' => 'High AG1 Rate Volatility',
-                    'message' => sprintf('AG1 rates show high volatility (%.2f%%), consider rate stabilization', $ag1Volatility)
-                ];
-            }
-        }
-        
-        return $insights;
-    }
-
-    /**
-     * Calculate expense ratios
-     */
-    private function calculateExpenseRatios($data)
-    {
-        $totalCA = array_sum(array_column($data, 'total_ca'));
-        $totalGA = array_sum(array_column($data, 'total_ga'));
-        $totalJE = array_sum(array_column($data, 'total_je'));
-        
-        $gaRatio = $totalCA > 0 ? ($totalGA / $totalCA) * 100 : 0;
-        $jeRatio = $totalCA > 0 ? ($totalJE / $totalCA) * 100 : 0;
-        $totalExpenseRatio = $totalCA > 0 ? (($totalGA + $totalJE) / $totalCA) * 100 : 0;
-        
-        return [
-            'ga_ratio' => [
-                'total' => $gaRatio,
-                'average' => $gaRatio,
-                'max' => $gaRatio,
-                'min' => $gaRatio,
-                'count' => 1
-            ],
-            'je_ratio' => [
-                'total' => $jeRatio,
-                'average' => $jeRatio,
-                'max' => $jeRatio,
-                'min' => $jeRatio,
-                'count' => 1
-            ],
-            'total_expense_ratio' => [
-                'total' => $totalExpenseRatio,
-                'average' => $totalExpenseRatio,
-                'max' => $totalExpenseRatio,
-                'min' => $totalExpenseRatio,
-                'count' => 1
-            ]
-        ];
-    }
-
-    /**
-     * Generate expense insights
-     */
-    private function generateExpenseInsights($summary, $expenseRatios)
-    {
-        $insights = [];
-        
-        $totalExpenseRatio = $expenseRatios['total_expense_ratio']['total'] ?? 0;
-        
-        if ($totalExpenseRatio > 50) {
-            $insights[] = [
-                'type' => 'warning',
-                'title' => 'High Expense Ratio',
-                'message' => sprintf('Total expenses are %.1f%% of revenue, consider cost optimization', $totalExpenseRatio)
-            ];
-        }
-        
-        return $insights;
-    }
-
-    /**
      * Get comparative period data
      */
     private function getComparativePeriodData($startDate, $endDate, $groupBy)
@@ -758,20 +716,33 @@ class ReportsController
      */
     private function calculatePreviousPeriod($startDate, $endDate)
     {
-        $start = new DateTime($startDate);
-        $end = new DateTime($endDate);
-        $diff = $start->diff($end);
-        
-        $prevEnd = clone $start;
-        $prevEnd->sub(new DateInterval('P1D'));
-        
-        $prevStart = clone $prevEnd;
-        $prevStart->sub($diff);
-        
-        return [
-            'start' => $prevStart->format('Y-m-d'),
-            'end' => $prevEnd->format('Y-m-d')
-        ];
+        try {
+            error_log("calculatePreviousPeriod: start=$startDate, end=$endDate");
+            
+            $start = new DateTime($startDate);
+            $end = new DateTime($endDate);
+            $diff = $start->diff($end);
+            
+            error_log("Date diff: " . $diff->days . " days");
+            
+            $prevEnd = clone $start;
+            $prevEnd->sub(new DateInterval('P1D'));
+            
+            $prevStart = clone $prevEnd;
+            $prevStart->sub($diff);
+            
+            $result = [
+                'start' => $prevStart->format('Y-m-d'),
+                'end' => $prevEnd->format('Y-m-d')
+            ];
+            
+            error_log("Previous period calculated: " . json_encode($result));
+            return $result;
+            
+        } catch (Exception $e) {
+            error_log("calculatePreviousPeriod error: " . $e->getMessage());
+            throw new Exception("Failed to calculate previous period: " . $e->getMessage());
+        }
     }
 
     /**
@@ -854,5 +825,472 @@ class ReportsController
         }, $values)) / count($values);
         
         return sqrt($variance) * 100; // Return as percentage
+    }
+
+    /**
+     * Generate CA (Customer Acquisition) Analysis Report
+     */
+    private function generateCAAnalysis($startDate, $endDate, $groupBy)
+    {
+        try {
+            $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate);
+            $data = $this->db->fetchAll($sql, [$startDate, $endDate]);
+            
+            $chartData = $this->processChartData($data, ['ca'], $groupBy);
+            $summary = $this->calculateSummaryStats($data, ['ca']);
+            
+            // CA-specific analysis
+            $caValues = array_column($data, 'total_ca');
+            $caAnalysis = $this->calculateDetailedMetrics($caValues, 'CA');
+            
+            // Growth analysis
+            $growthAnalysis = $this->calculateGrowthTrends($data, 'ca');
+            
+            // Performance benchmarks
+            $benchmarks = $this->calculateCABenchmarks($data);
+            
+            return [
+                'type' => 'ca_analysis',
+                'title' => 'Customer Acquisition (CA) Analysis',
+                'period' => $this->formatPeriod($startDate, $endDate),
+                'chart' => $chartData,
+                'summary' => array_merge($summary, $caAnalysis),
+                'growth' => $growthAnalysis,
+                'benchmarks' => $benchmarks,
+                'table' => $this->processTableData($data, $groupBy),
+                'insights' => $this->generateCAInsights($summary, $caAnalysis, $growthAnalysis)
+            ];
+        } catch (Exception $e) {
+            error_log("generateCAAnalysis error: " . $e->getMessage());
+            throw new Exception("Failed to generate CA analysis: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Generate GA (General & Administrative) Analysis Report
+     */
+    private function generateGAAnalysis($startDate, $endDate, $groupBy)
+    {
+        try {
+            $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate);
+            $data = $this->db->fetchAll($sql, [$startDate, $endDate]);
+            
+            $chartData = $this->processChartData($data, ['ga'], $groupBy);
+            $summary = $this->calculateSummaryStats($data, ['ga']);
+            
+            // GA-specific analysis
+            $gaValues = array_column($data, 'total_ga');
+            $gaAnalysis = $this->calculateDetailedMetrics($gaValues, 'GA');
+            
+            // Expense efficiency analysis
+            $efficiencyAnalysis = $this->calculateGAEfficiency($data);
+            
+            // Cost control metrics
+            $costControl = $this->calculateCostControlMetrics($data, 'ga');
+            
+            return [
+                'type' => 'ga_analysis',
+                'title' => 'General & Administrative (GA) Analysis',
+                'period' => $this->formatPeriod($startDate, $endDate),
+                'chart' => $chartData,
+                'summary' => array_merge($summary, $gaAnalysis),
+                'efficiency' => $efficiencyAnalysis,
+                'cost_control' => $costControl,
+                'table' => $this->processTableData($data, $groupBy),
+                'insights' => $this->generateGAInsights($summary, $efficiencyAnalysis, $costControl)
+            ];
+        } catch (Exception $e) {
+            error_log("generateGAAnalysis error: " . $e->getMessage());
+            throw new Exception("Failed to generate GA analysis: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Generate RE (Revenue Enhancement) Analysis Report
+     */
+    private function generateREAnalysis($startDate, $endDate, $groupBy)
+    {
+        try {
+            $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate);
+            $data = $this->db->fetchAll($sql, [$startDate, $endDate]);
+            
+            $chartData = $this->processChartData($data, ['re'], $groupBy);
+            $summary = $this->calculateSummaryStats($data, ['re']);
+            
+            // RE-specific analysis
+            $reValues = array_column($data, 'total_re');
+            $reAnalysis = $this->calculateDetailedMetrics($reValues, 'RE');
+            
+            // Revenue optimization analysis
+            $optimizationAnalysis = $this->calculateREOptimization($data);
+            
+            // Performance tracking
+            $performanceTracking = $this->calculateREPerformance($data);
+            
+            return [
+                'type' => 're_analysis',
+                'title' => 'Revenue Enhancement (RE) Analysis',
+                'period' => $this->formatPeriod($startDate, $endDate),
+                'chart' => $chartData,
+                'summary' => array_merge($summary, $reAnalysis),
+                'optimization' => $optimizationAnalysis,
+                'performance' => $performanceTracking,
+                'table' => $this->processTableData($data, $groupBy),
+                'insights' => $this->generateREInsights($summary, $optimizationAnalysis, $performanceTracking)
+            ];
+        } catch (Exception $e) {
+            error_log("generateREAnalysis error: " . $e->getMessage());
+            throw new Exception("Failed to generate RE analysis: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Generate JE (Joint Expenses) Analysis Report
+     */
+    private function generateJEAnalysis($startDate, $endDate, $groupBy)
+    {
+        try {
+            $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate);
+            $data = $this->db->fetchAll($sql, [$startDate, $endDate]);
+            
+            $chartData = $this->processChartData($data, ['je'], $groupBy);
+            $summary = $this->calculateSummaryStats($data, ['je']);
+            
+            // JE-specific analysis
+            $jeValues = array_column($data, 'total_je');
+            $jeAnalysis = $this->calculateDetailedMetrics($jeValues, 'JE');
+            
+            // Expense allocation analysis
+            $allocationAnalysis = $this->calculateJEAllocation($data);
+            
+            // Cost optimization opportunities
+            $optimizationOpportunities = $this->calculateJEOptimization($data);
+            
+            return [
+                'type' => 'je_analysis',
+                'title' => 'Joint Expenses (JE) Analysis',
+                'period' => $this->formatPeriod($startDate, $endDate),
+                'chart' => $chartData,
+                'summary' => array_merge($summary, $jeAnalysis),
+                'allocation' => $allocationAnalysis,
+                'optimization' => $optimizationOpportunities,
+                'table' => $this->processTableData($data, $groupBy),
+                'insights' => $this->generateJEInsights($summary, $allocationAnalysis, $optimizationOpportunities)
+            ];
+        } catch (Exception $e) {
+            error_log("generateJEAnalysis error: " . $e->getMessage());
+            throw new Exception("Failed to generate JE analysis: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Calculate detailed metrics for specific metric
+     */
+    private function calculateDetailedMetrics($values, $metricName)
+    {
+        if (empty($values)) {
+            return [
+                'volatility' => 0,
+                'consistency_score' => 0,
+                'trend_direction' => 'stable',
+                'growth_rate' => 0
+            ];
+        }
+
+        $volatility = $this->calculateVolatility($values);
+        $consistencyScore = max(0, 100 - $volatility);
+        
+        // Calculate trend
+        $firstHalf = array_slice($values, 0, ceil(count($values) / 2));
+        $secondHalf = array_slice($values, floor(count($values) / 2));
+        
+        $firstAvg = count($firstHalf) > 0 ? array_sum($firstHalf) / count($firstHalf) : 0;
+        $secondAvg = count($secondHalf) > 0 ? array_sum($secondHalf) / count($secondHalf) : 0;
+        
+        $growthRate = $firstAvg > 0 ? (($secondAvg - $firstAvg) / $firstAvg) * 100 : 0;
+        $trendDirection = $growthRate > 5 ? 'increasing' : ($growthRate < -5 ? 'decreasing' : 'stable');
+        
+        return [
+            'volatility' => round($volatility, 2),
+            'consistency_score' => round($consistencyScore, 1),
+            'trend_direction' => $trendDirection,
+            'growth_rate' => round($growthRate, 2)
+        ];
+    }
+
+    /**
+     * Calculate growth trends
+     */
+    private function calculateGrowthTrends($data, $metric)
+    {
+        $values = array_column($data, 'total_' . $metric);
+        if (count($values) < 2) {
+            return ['trend' => 'insufficient_data', 'rate' => 0];
+        }
+
+        $recent = array_slice($values, -3); // Last 3 periods
+        $earlier = array_slice($values, 0, 3); // First 3 periods
+        
+        $recentAvg = array_sum($recent) / count($recent);
+        $earlierAvg = array_sum($earlier) / count($earlier);
+        
+        $growthRate = $earlierAvg > 0 ? (($recentAvg - $earlierAvg) / $earlierAvg) * 100 : 0;
+        
+        return [
+            'trend' => $growthRate > 10 ? 'strong_growth' : ($growthRate > 0 ? 'growth' : ($growthRate < -10 ? 'decline' : 'stable')),
+            'rate' => round($growthRate, 2),
+            'recent_average' => round($recentAvg, 2),
+            'earlier_average' => round($earlierAvg, 2)
+        ];
+    }
+
+    /**
+     * Calculate CA benchmarks
+     */
+    private function calculateCABenchmarks($data)
+    {
+        $caValues = array_column($data, 'total_ca');
+        $fiValues = array_column($data, 'total_fi');
+        
+        $totalCA = array_sum($caValues);
+        $totalFI = array_sum($fiValues);
+        
+        $conversionRate = $totalCA > 0 ? ($totalFI / $totalCA) * 100 : 0;
+        $avgDealSize = count($caValues) > 0 ? $totalCA / count($caValues) : 0;
+        
+        return [
+            'conversion_rate' => round($conversionRate, 2),
+            'average_deal_size' => round($avgDealSize, 2),
+            'total_volume' => $totalCA,
+            'performance_rating' => $conversionRate > 60 ? 'excellent' : ($conversionRate > 40 ? 'good' : 'needs_improvement')
+        ];
+    }
+
+    /**
+     * Calculate GA efficiency
+     */
+    private function calculateGAEfficiency($data)
+    {
+        $gaValues = array_column($data, 'total_ga');
+        $caValues = array_column($data, 'total_ca');
+        
+        $totalGA = array_sum($gaValues);
+        $totalCA = array_sum($caValues);
+        
+        $efficiencyRatio = $totalCA > 0 ? ($totalGA / $totalCA) * 100 : 0;
+        $costPerTransaction = count($data) > 0 ? $totalGA / count($data) : 0;
+        
+        return [
+            'efficiency_ratio' => round($efficiencyRatio, 2),
+            'cost_per_transaction' => round($costPerTransaction, 2),
+            'total_expenses' => $totalGA,
+            'efficiency_rating' => $efficiencyRatio < 15 ? 'excellent' : ($efficiencyRatio < 25 ? 'good' : 'needs_optimization')
+        ];
+    }
+
+    /**
+     * Calculate cost control metrics
+     */
+    private function calculateCostControlMetrics($data, $metric)
+    {
+        $values = array_column($data, 'total_' . $metric);
+        $budget = max($values) * 1.1; // Assume budget is 110% of max
+        
+        $avgSpend = count($values) > 0 ? array_sum($values) / count($values) : 0;
+        $budgetUtilization = $budget > 0 ? ($avgSpend / $budget) * 100 : 0;
+        
+        return [
+            'budget_utilization' => round($budgetUtilization, 2),
+            'average_spend' => round($avgSpend, 2),
+            'max_spend' => max($values),
+            'control_status' => $budgetUtilization < 80 ? 'under_control' : ($budgetUtilization < 95 ? 'monitor' : 'over_budget')
+        ];
+    }
+
+    /**
+     * Calculate RE optimization
+     */
+    private function calculateREOptimization($data)
+    {
+        $reValues = array_column($data, 'total_re');
+        $caValues = array_column($data, 'total_ca');
+        
+        $totalRE = array_sum($reValues);
+        $totalCA = array_sum($caValues);
+        
+        $enhancementRatio = $totalCA > 0 ? ($totalRE / $totalCA) * 100 : 0;
+        $avgEnhancement = count($reValues) > 0 ? $totalRE / count($reValues) : 0;
+        
+        return [
+            'enhancement_ratio' => round($enhancementRatio, 2),
+            'average_enhancement' => round($avgEnhancement, 2),
+            'total_enhancement' => $totalRE,
+            'optimization_level' => $enhancementRatio > 20 ? 'high' : ($enhancementRatio > 10 ? 'moderate' : 'low')
+        ];
+    }
+
+    /**
+     * Calculate RE performance
+     */
+    private function calculateREPerformance($data)
+    {
+        $reValues = array_column($data, 'total_re');
+        $fiValues = array_column($data, 'total_fi');
+        
+        $totalRE = array_sum($reValues);
+        $totalFI = array_sum($fiValues);
+        
+        $contributionRatio = $totalFI > 0 ? ($totalRE / $totalFI) * 100 : 0;
+        
+        return [
+            'contribution_to_profit' => round($contributionRatio, 2),
+            'performance_score' => min(100, $contributionRatio * 2), // Scale to 100
+            'status' => $contributionRatio > 30 ? 'excellent' : ($contributionRatio > 15 ? 'good' : 'needs_improvement')
+        ];
+    }
+
+    /**
+     * Calculate JE allocation
+     */
+    private function calculateJEAllocation($data)
+    {
+        $jeValues = array_column($data, 'total_je');
+        $caValues = array_column($data, 'total_ca');
+        
+        $totalJE = array_sum($jeValues);
+        $totalCA = array_sum($caValues);
+        
+        $allocationRatio = $totalCA > 0 ? ($totalJE / $totalCA) * 100 : 0;
+        $avgAllocation = count($jeValues) > 0 ? $totalJE / count($jeValues) : 0;
+        
+        return [
+            'allocation_ratio' => round($allocationRatio, 2),
+            'average_allocation' => round($avgAllocation, 2),
+            'total_allocation' => $totalJE,
+            'allocation_efficiency' => $allocationRatio < 20 ? 'efficient' : ($allocationRatio < 30 ? 'moderate' : 'review_needed')
+        ];
+    }
+
+    /**
+     * Calculate JE optimization
+     */
+    private function calculateJEOptimization($data)
+    {
+        $jeValues = array_column($data, 'total_je');
+        $volatility = $this->calculateVolatility($jeValues);
+        
+        $optimizationPotential = $volatility > 20 ? 'high' : ($volatility > 10 ? 'moderate' : 'low');
+        $stabilityScore = max(0, 100 - $volatility);
+        
+        return [
+            'optimization_potential' => $optimizationPotential,
+            'stability_score' => round($stabilityScore, 1),
+            'volatility' => round($volatility, 2),
+            'recommendation' => $volatility > 20 ? 'implement_cost_controls' : 'maintain_current_approach'
+        ];
+    }
+
+    /**
+     * Generate CA insights
+     */
+    private function generateCAInsights($summary, $analysis, $growth)
+    {
+        $insights = [];
+        
+        if ($growth['rate'] > 15) {
+            $insights[] = [
+                'type' => 'success',
+                'title' => 'Strong CA Growth',
+                'message' => sprintf('CA showing strong growth of %.1f%% - excellent acquisition performance', $growth['rate'])
+            ];
+        }
+        
+        if ($analysis['consistency_score'] > 80) {
+            $insights[] = [
+                'type' => 'success',
+                'title' => 'Consistent Performance',
+                'message' => sprintf('CA performance is highly consistent (%.1f%% score)', $analysis['consistency_score'])
+            ];
+        }
+        
+        return $insights;
+    }
+
+    /**
+     * Generate GA insights
+     */
+    private function generateGAInsights($summary, $efficiency, $costControl)
+    {
+        $insights = [];
+        
+        if ($efficiency['efficiency_ratio'] > 25) {
+            $insights[] = [
+                'type' => 'warning',
+                'title' => 'High GA Ratio',
+                'message' => sprintf('GA expenses are %.1f%% of CA - consider cost optimization', $efficiency['efficiency_ratio'])
+            ];
+        }
+        
+        if ($costControl['control_status'] === 'under_control') {
+            $insights[] = [
+                'type' => 'success',
+                'title' => 'Cost Control Effective',
+                'message' => 'GA expenses are well controlled within budget parameters'
+            ];
+        }
+        
+        return $insights;
+    }
+
+    /**
+     * Generate RE insights
+     */
+    private function generateREInsights($summary, $optimization, $performance)
+    {
+        $insights = [];
+        
+        if ($performance['contribution_to_profit'] > 25) {
+            $insights[] = [
+                'type' => 'success',
+                'title' => 'Strong RE Contribution',
+                'message' => sprintf('RE contributes %.1f%% to total profit - excellent enhancement', $performance['contribution_to_profit'])
+            ];
+        }
+        
+        if ($optimization['optimization_level'] === 'low') {
+            $insights[] = [
+                'type' => 'info',
+                'title' => 'RE Optimization Opportunity',
+                'message' => 'Revenue enhancement has potential for improvement - consider new strategies'
+            ];
+        }
+        
+        return $insights;
+    }
+
+    /**
+     * Generate JE insights
+     */
+    private function generateJEInsights($summary, $allocation, $optimization)
+    {
+        $insights = [];
+        
+        if ($allocation['allocation_ratio'] > 25) {
+            $insights[] = [
+                'type' => 'warning',
+                'title' => 'High JE Allocation',
+                'message' => sprintf('Joint expenses are %.1f%% of CA - review allocation efficiency', $allocation['allocation_ratio'])
+            ];
+        }
+        
+        if ($optimization['optimization_potential'] === 'high') {
+            $insights[] = [
+                'type' => 'info',
+                'title' => 'Optimization Opportunity',
+                'message' => 'High volatility in JE suggests optimization opportunities available'
+            ];
+        }
+        
+        return $insights;
     }
 }

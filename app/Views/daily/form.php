@@ -245,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 previewContent.innerHTML = `
                     <div class="preview-item">
-                        <span>CA (Input):</span>
+                        <span>CA:</span>
                         <span>${formatMoney(computed.ca)}</span>
                     </div>
                     <div class="preview-item">
@@ -265,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span>${formatMoney(computed.av2)}</span>
                     </div>
                     <div class="preview-item">
-                        <span>GA (Input):</span>
+                        <span>GA:</span>
                         <span>${formatMoney(computed.ga)}</span>
                     </div>
                     <div class="preview-item">
@@ -273,11 +273,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span>${formatMoney(computed.re)}</span>
                     </div>
                     <div class="preview-item">
-                        <span>JE (Input):</span>
+                        <span>JE:</span>
                         <span>${formatMoney(computed.je)}</span>
                     </div>
                     <div class="preview-item">
-                        <span>FI (Final):</span>
+                        <span>FI:</span>
                         <span>${formatMoney(computed.fi)}</span>
                     </div>
                 `;

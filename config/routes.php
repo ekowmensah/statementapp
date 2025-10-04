@@ -32,6 +32,7 @@ return [
     // Reports
     'GET /reports' => 'ReportsController@index',
     'GET /reports/data' => 'ReportsController@getData',
+    'GET /reports/test' => 'ReportsController@test',
 
     // Month Locks
     'GET /locks' => 'MonthLockController@index',
