@@ -184,7 +184,11 @@ function appUrl($path) {
                     <div class="col-md-2" id="yearFilter" style="<?= !in_array($data['filter_type'], ['month', 'year']) ? 'display: none;' : '' ?>">
                         <label for="year" class="form-label">Year</label>
                         <select class="form-select" id="year" name="year">
-                            <?php for ($y = date('Y') - 2; $y <= date('Y') + 1; $y++): ?>
+                            <?php 
+                            $minYear = $data['year_range']['min'] ?? (date('Y') - 2);
+                            $maxYear = $data['year_range']['max'] ?? (date('Y') + 1);
+                            for ($y = $minYear; $y <= $maxYear; $y++): 
+                            ?>
                                 <option value="<?= $y ?>" <?= $y == $data['selected_year'] ? 'selected' : '' ?>>
                                     <?= $y ?>
                                 </option>

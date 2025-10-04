@@ -154,7 +154,11 @@ function appUrl($path) {
                     <?php endfor; ?>
                 </select>
                 <select class="form-select" id="yearSelector">
-                    <?php for ($y = date('Y') - 2; $y <= date('Y') + 1; $y++): ?>
+                    <?php 
+                    $minYear = $data['year_range']['min'] ?? (date('Y') - 2);
+                    $maxYear = $data['year_range']['max'] ?? (date('Y') + 1);
+                    for ($y = $minYear; $y <= $maxYear; $y++): 
+                    ?>
                         <option value="<?= $y ?>" <?= $y == $data['current_year'] ? 'selected' : '' ?>>
                             <?= $y ?>
                         </option>
@@ -229,7 +233,7 @@ function appUrl($path) {
                 <h2 class="kpi-value"><?= $data['kpis']['ytd_fi_formatted'] ?? '$0.00' ?></h2>
                 <div class="kpi-change">
                     <i class="bi bi-info-circle"></i>
-                    <span><?= $data['kpis']['ytd_transaction_count'] ?? 0 ?> transactions</span>
+                    <span id="ytd-transaction-count"><?= $data['kpis']['ytd_transaction_count'] ?? 0 ?> transactions</span>
                 </div>
             </div>
         </div>
@@ -713,8 +717,15 @@ function updateKPIs(year, month) {
                     kpiElements.efficiency_ratio.textContent = kpis.efficiency_ratio + '%';
                 }
                 
+                // Update YTD transaction count
+                const ytdTransactionElement = document.getElementById('ytd-transaction-count');
+                if (ytdTransactionElement && kpis.ytd_transaction_count !== undefined) {
+                    ytdTransactionElement.textContent = kpis.ytd_transaction_count + ' transactions';
+                }
+                
                 // Update Performance Metrics
                 if (performanceMetrics) {
+                    console.log('Performance metrics data:', performanceMetrics);
                     const metricElements = {
                         'avg_transaction_size': document.getElementById('metric-avg-transaction'),
                         'best_day': document.getElementById('metric-best-day'),
@@ -724,26 +735,34 @@ function updateKPIs(year, month) {
                         'total_transactions': document.getElementById('metric-total-transactions')
                     };
                     
-                    if (metricElements.avg_transaction_size && performanceMetrics.avg_transaction_size) {
+                    if (metricElements.avg_transaction_size && performanceMetrics.avg_transaction_size !== undefined) {
                         metricElements.avg_transaction_size.textContent = performanceMetrics.avg_transaction_size;
                     }
-                    if (metricElements.best_day && performanceMetrics.best_day) {
+                    if (metricElements.best_day && performanceMetrics.best_day !== undefined) {
                         metricElements.best_day.textContent = performanceMetrics.best_day;
                     }
-                    if (metricElements.consistency_score && performanceMetrics.consistency_score) {
+                    if (metricElements.consistency_score && performanceMetrics.consistency_score !== undefined) {
                         metricElements.consistency_score.textContent = performanceMetrics.consistency_score + '%';
                     }
-                    if (metricElements.avg_ag1_rate && performanceMetrics.avg_ag1_rate) {
+                    if (metricElements.avg_ag1_rate && performanceMetrics.avg_ag1_rate !== undefined) {
                         metricElements.avg_ag1_rate.textContent = performanceMetrics.avg_ag1_rate + '%';
                     }
-                    if (metricElements.avg_ag2_rate && performanceMetrics.avg_ag2_rate) {
+                    if (metricElements.avg_ag2_rate && performanceMetrics.avg_ag2_rate !== undefined) {
                         metricElements.avg_ag2_rate.textContent = performanceMetrics.avg_ag2_rate + '%';
                     }
-                    if (metricElements.total_transactions && performanceMetrics.total_transactions) {
+                    if (metricElements.total_transactions && performanceMetrics.total_transactions !== undefined) {
+                        console.log('Updating total transactions:', performanceMetrics.total_transactions);
                         metricElements.total_transactions.textContent = performanceMetrics.total_transactions;
+                    } else {
+                        console.log('Total transactions not updated - element:', metricElements.total_transactions, 'value:', performanceMetrics.total_transactions);
                     }
                     
                     console.log('Performance metrics updated successfully');
+                }
+                
+                // Update Trend Analysis
+                if (data.data.trend_analysis) {
+                    updateTrendAnalysis(data.data.trend_analysis);
                 }
                 
                 console.log('KPIs updated successfully');
@@ -755,6 +774,58 @@ function updateKPIs(year, month) {
             console.error('Error updating KPIs:', error);
             throw error;
         });
+}
+
+function updateTrendAnalysis(trendData) {
+    console.log('Updating trend analysis:', trendData);
+    
+    try {
+        // Update CA Trend
+        const caTrendElement = document.querySelector('.insight-card .badge');
+        if (caTrendElement && trendData.ca_trend) {
+            caTrendElement.textContent = trendData.ca_trend.replace('_', ' ').toUpperCase();
+            caTrendElement.className = `badge bg-${trendData.ca_trend === 'upward' ? 'success' : (trendData.ca_trend === 'downward' ? 'danger' : 'secondary')}`;
+        }
+        
+        // Update FI Trend
+        const fiTrendElement = document.querySelectorAll('.insight-card .badge')[1];
+        if (fiTrendElement && trendData.fi_trend) {
+            fiTrendElement.textContent = trendData.fi_trend.replace('_', ' ').toUpperCase();
+            fiTrendElement.className = `badge bg-${trendData.fi_trend === 'upward' ? 'success' : (trendData.fi_trend === 'downward' ? 'danger' : 'secondary')}`;
+        }
+        
+        // Update Growth Rate
+        const growthRateElement = document.querySelector('.insight-card p:nth-child(4)');
+        if (growthRateElement && trendData.growth_rate !== undefined) {
+            growthRateElement.innerHTML = `<strong>Growth Rate:</strong> ${trendData.growth_rate}%`;
+        }
+        
+        // Update Rate Stability
+        const rateStabilityElement = document.querySelectorAll('.insight-card .badge')[2];
+        if (rateStabilityElement && trendData.rate_stability) {
+            rateStabilityElement.textContent = trendData.rate_stability.replace('_', ' ').toUpperCase();
+            rateStabilityElement.className = `badge bg-${trendData.rate_stability === 'stable' ? 'success' : 'warning'}`;
+        }
+        
+        // Update Forecast if available
+        if (trendData.forecast && trendData.forecast.status === 'available') {
+            const forecastFiElement = document.querySelector('.insight-card:last-child p:nth-child(2)');
+            const forecastConfidenceElement = document.querySelector('.insight-card:last-child .badge:last-child');
+            
+            if (forecastFiElement && trendData.forecast.next_month_fi) {
+                forecastFiElement.innerHTML = `<strong>Next Month FI:</strong> ${trendData.forecast.next_month_fi}`;
+            }
+            
+            if (forecastConfidenceElement && trendData.forecast.confidence) {
+                forecastConfidenceElement.textContent = trendData.forecast.confidence.toUpperCase();
+                forecastConfidenceElement.className = `badge bg-${trendData.forecast.confidence === 'high' ? 'success' : (trendData.forecast.confidence === 'medium' ? 'warning' : 'danger')}`;
+            }
+        }
+        
+        console.log('Trend analysis updated successfully');
+    } catch (error) {
+        console.error('Error updating trend analysis:', error);
+    }
 }
 
 function updateCharts(year, month) {

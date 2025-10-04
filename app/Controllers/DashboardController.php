@@ -49,22 +49,24 @@ class DashboardController
         // Financial insights and alerts
         $insights = $this->generateFinancialInsights($currentYear, $currentMonth);
         
-        // Performance metrics and ratios
         $performanceMetrics = $this->calculatePerformanceMetrics($currentYear, $currentMonth);
         
         // Trend analysis
         $trendAnalysis = $this->analyzeTrends($currentYear, $currentMonth);
 
+        // Get available year range from database
+        $yearRange = $this->getAvailableYearRange();
+        
         $data = [
             'title' => 'Financial Analytics Dashboard - Daily Statement App',
             'current_year' => $currentYear,
             'current_month' => $currentMonth,
             'month_name' => date('F Y'),
+            'year_range' => $yearRange,
             'kpis' => $kpis,
-            'recent_transactions' => $recentTransactions,
+            'performance_metrics' => $performanceMetrics,
             'chart_data' => $chartData,
             'insights' => $insights,
-            'performance_metrics' => $performanceMetrics,
             'trend_analysis' => $trendAnalysis,
             'user' => Auth::user()
         ];
@@ -85,12 +87,20 @@ class DashboardController
         // Also get performance metrics for the same period
         $performanceMetrics = $this->calculatePerformanceMetrics($year, $month);
         
+        // Get trend analysis for the selected period
+        $trendAnalysis = $this->analyzeTrends($year, $month);
+        
+        // Get insights for the selected period
+        $insights = $this->generateFinancialInsights($year, $month);
+        
         header('Content-Type: application/json');
         echo json_encode([
             'success' => true,
             'data' => [
                 'kpis' => $kpis,
-                'performance_metrics' => $performanceMetrics
+                'performance_metrics' => $performanceMetrics,
+                'trend_analysis' => $trendAnalysis,
+                'insights' => $insights
             ]
         ]);
         exit;
@@ -197,7 +207,7 @@ class DashboardController
             'ytd_transaction_count' => $ytdData['ytd_transactions'] ?? 0,
             'avg_ag1_rate' => round(($currentData['avg_ag1'] ?? 0) * 100, 2),
             'avg_ag2_rate' => round(($currentData['avg_ag2'] ?? 0) * 100, 2),
-            'efficiency_ratio' => $this->calculateEfficiencyRatio($currentData),
+            'efficiency_ratio' => $this->calculateEfficiencyRatio($currentData['mtd_ca'] ?? 0, $currentData['mtd_ga'] ?? 0),
             'profitability_ratio' => $this->calculateProfitabilityRatio($currentData),
             'ca_change' => $this->calculatePercentageChange($prevData['prev_ca'] ?? 0, $currentData['mtd_ca'] ?? 0),
             'fi_change' => $this->calculatePercentageChange($prevData['prev_fi'] ?? 0, $currentData['mtd_fi'] ?? 0)
@@ -205,17 +215,15 @@ class DashboardController
     }
 
     /**
-     * Calculate Efficiency Ratio
+     * Calculate efficiency ratio
      */
-    private function calculateEfficiencyRatio($data)
+    private function calculateEfficiencyRatio($ca, $ga)
     {
-        $totalCa = $data['mtd_ca'] ?? 0;
-        $totalGa = $data['mtd_ga'] ?? 0;
-        
-        return $totalCa > 0 ? round((($totalCa - $totalGa) / $totalCa) * 100, 2) : 0;
+        return $ca > 0 ? round((($ca - $ga) / $ca) * 100, 2) : 0;
     }
 
     /**
+     * Get available year range from database
      * Calculate Profitability Ratio
      */
     private function calculateProfitabilityRatio($data)
@@ -252,21 +260,38 @@ class DashboardController
     {
         $db = Database::getInstance();
         
-        // Get detailed metrics
+        // Get detailed metrics with proper handling of empty results
         $metrics = $db->fetch(
             "SELECT 
-                AVG(ca) as avg_ca,
-                AVG(fi) as avg_fi,
-                MAX(fi) as max_fi,
-                MIN(fi) as min_fi,
-                STDDEV(fi) as fi_volatility,
-                AVG(rate_ag1) as avg_ag1_rate,
-                AVG(rate_ag2) as avg_ag2_rate,
+                COALESCE(AVG(ca), 0) as avg_ca,
+                COALESCE(AVG(fi), 0) as avg_fi,
+                COALESCE(MAX(fi), 0) as max_fi,
+                COALESCE(MIN(fi), 0) as min_fi,
+                COALESCE(STDDEV(fi), 0) as fi_volatility,
+                COALESCE(AVG(rate_ag1), 0) as avg_ag1_rate,
+                COALESCE(AVG(rate_ag2), 0) as avg_ag2_rate,
                 COUNT(*) as total_transactions
              FROM v_daily_txn 
              WHERE YEAR(txn_date) = ? AND MONTH(txn_date) = ?",
             [$year, $month]
         );
+
+        // Ensure we always have a valid result
+        if (!$metrics) {
+            $metrics = [
+                'avg_ca' => 0,
+                'avg_fi' => 0,
+                'max_fi' => 0,
+                'min_fi' => 0,
+                'fi_volatility' => 0,
+                'avg_ag1_rate' => 0,
+                'avg_ag2_rate' => 0,
+                'total_transactions' => 0
+            ];
+        }
+
+        // Debug logging for performance metrics
+        error_log("Performance metrics for {$year}-{$month}: " . json_encode($metrics));
 
         return [
             'avg_transaction_size' => Money::format($metrics['avg_ca'] ?? 0),
@@ -304,7 +329,8 @@ class DashboardController
     {
         $db = Database::getInstance();
         
-        // Get last 6 months of data for trend analysis
+        // Get 6 months of data leading up to and including the selected month for trend analysis
+        $selectedDate = sprintf('%04d-%02d-01', $year, $month);
         $trendData = $db->fetchAll(
             "SELECT 
                 YEAR(txn_date) as year,
@@ -314,10 +340,11 @@ class DashboardController
                 AVG(rate_ag1) as avg_ag1,
                 AVG(rate_ag2) as avg_ag2
              FROM v_daily_txn 
-             WHERE txn_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+             WHERE txn_date >= DATE_SUB(?, INTERVAL 5 MONTH) 
+             AND txn_date <= LAST_DAY(?)
              GROUP BY YEAR(txn_date), MONTH(txn_date)
              ORDER BY YEAR(txn_date), MONTH(txn_date)",
-            []
+            [$selectedDate, $selectedDate]
         );
 
         $trends = [
@@ -764,6 +791,33 @@ class DashboardController
         }
         
         return $insights;
+    }
+
+    /**
+     * Get available year range from database
+     */
+    private function getAvailableYearRange()
+    {
+        $db = Database::getInstance();
+        
+        $result = $db->fetch(
+            "SELECT 
+                MIN(YEAR(txn_date)) as min_year,
+                MAX(YEAR(txn_date)) as max_year
+             FROM v_daily_txn"
+        );
+        
+        $minYear = $result['min_year'] ?? date('Y');
+        $maxYear = $result['max_year'] ?? date('Y');
+        
+        // Ensure we have at least current year
+        $minYear = min($minYear, date('Y'));
+        $maxYear = max($maxYear, date('Y'));
+        
+        return [
+            'min' => (int)$minYear,
+            'max' => (int)$maxYear
+        ];
     }
 }
 ?>

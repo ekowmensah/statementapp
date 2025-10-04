@@ -54,31 +54,43 @@ class DailyTxnController
         $transactions = $result['transactions'];
         $totalCount = $result['total_count'];
 
-        // Get totals for the filtered period
-        $totals = $this->calculateFilteredTotals($dateRange, $search);
+        // Calculate pagination info
+        $totalPages = ceil($totalCount / $perPage);
+        $pagination = [
+            'current_page' => $page,
+            'total_pages' => $totalPages,
+            'total_count' => $totalCount,
+            'per_page' => $perPage,
+            'has_prev' => $page > 1,
+            'has_next' => $page < $totalPages,
+            'prev_page' => $page > 1 ? $page - 1 : null,
+            'next_page' => $page < $totalPages ? $page + 1 : null
+        ];
 
         // Check if any month in the range is locked
         $isLocked = $this->checkLockStatus($dateRange);
         $lockInfo = $isLocked ? $this->monthLockModel->getLockInfo($year, $month) : null;
 
+        // Get available year range from database
+        $yearRange = $this->getAvailableYearRange();
+
         $data = [
             'title' => 'Daily Transactions - Daily Statement App',
             'transactions' => $transactions,
-            'totals' => $totals,
-            'current_page' => $page,
-            'total_pages' => ceil($totalCount / $perPage),
-            'total_count' => $totalCount,
+            'pagination' => $pagination,
+            'can_create' => Auth::can('create_daily'),
+            'can_edit' => Auth::can('edit_daily'),
+            'can_delete' => Auth::can('delete_daily'),
+            'page' => $page,
             'per_page' => $perPage,
             'filter_type' => $filterType,
             'selected_month' => $month,
             'selected_year' => $year,
+            'year_range' => $yearRange,
             'search' => $search,
             'date_range' => $dateRange,
             'is_locked' => $isLocked,
-            'lock_info' => $lockInfo,
-            'can_create' => Auth::can('create_daily'),
-            'can_edit' => Auth::can('edit_daily'),
-            'can_delete' => Auth::can('delete_daily')
+            'lock_info' => $lockInfo
         ];
 
         include __DIR__ . '/../Views/daily/index.php';
@@ -719,5 +731,32 @@ class DailyTxnController
         $transactions = $this->dailyTxnModel->getByDateRangeComputed($startDate, $endDate);
 
         Response::success($transactions);
+    }
+
+    /**
+     * Get available year range from database
+     */
+    private function getAvailableYearRange()
+    {
+        $db = Database::getInstance();
+        
+        $result = $db->fetch(
+            "SELECT 
+                MIN(YEAR(txn_date)) as min_year,
+                MAX(YEAR(txn_date)) as max_year
+             FROM v_daily_txn"
+        );
+        
+        $minYear = $result['min_year'] ?? date('Y');
+        $maxYear = $result['max_year'] ?? date('Y');
+        
+        // Ensure we have at least current year
+        $minYear = min($minYear, date('Y'));
+        $maxYear = max($maxYear, date('Y'));
+        
+        return [
+            'min' => (int)$minYear,
+            'max' => (int)$maxYear
+        ];
     }
 }
