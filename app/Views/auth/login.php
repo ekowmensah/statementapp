@@ -138,9 +138,9 @@
                         </form>
 
                         <div class="text-center mt-4">
-                            <small class="text-muted">
+                         <!--   <small class="text-muted">
                                 Default credentials: admin@example.com / admin123
-                            </small>
+                            </small> -->
                         </div>
                     </div>
                 </div>
