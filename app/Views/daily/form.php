@@ -5,7 +5,7 @@ require_once __DIR__ . '/../layouts/header.php';
 function appUrl($path) {
     return Response::url($path);
 }
-?>
+
 // Get old input data if available
 $oldInput = $_SESSION['old_input'] ?? [];
 unset($_SESSION['old_input']);

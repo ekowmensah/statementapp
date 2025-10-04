@@ -214,6 +214,18 @@
                 margin: 0.25rem 0;
             }
             
+            /* Mobile header layout */
+            .header .container-fluid {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            
+            /* Add Transaction button styling */
+            .btn-add-transaction {
+                white-space: nowrap;
+            }
+            
             /* Mobile spacing */
             .mb-4 { margin-bottom: 1.5rem !important; }
             .mb-3 { margin-bottom: 1rem !important; }
@@ -301,6 +313,13 @@
                     <i class="bi bi-list"></i>
                 </button>
                 
+                <!-- Mobile Add Transaction Button -->
+                <div class="d-md-none">
+                    <a href="<?= Response::url('daily/create') ?>" class="btn btn-primary btn-sm btn-add-transaction">
+                        <i class="bi bi-plus-circle"></i>
+                    </a>
+                </div>
+                
                 <div class="header-nav d-none d-md-flex">
                     <div class="nav-item">
                         <span class="nav-link">
@@ -311,6 +330,12 @@
                 </div>
                 
                 <div class="header-nav ms-auto">
+                    <div class="nav-item">
+                        <a href="<?= Response::url('daily/create') ?>" class="btn btn-primary btn-sm me-3 btn-add-transaction">
+                            <i class="bi bi-plus-circle me-1"></i>
+                            Add Transaction
+                        </a>
+                    </div>
                     <div class="nav-item dropdown">
                         <a class="nav-link py-0" data-coreui-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
                             <div class="avatar avatar-md">
