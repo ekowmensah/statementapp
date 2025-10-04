@@ -340,10 +340,13 @@
         window.fetch = function(...args) {
             let [resource, config] = args;
             
-            // Add cache-busting to URL if it's a string
+            // Add cache-busting to URL if it's a string and doesn't already have cache-busting
             if (typeof resource === 'string') {
-                const separator = resource.includes('?') ? '&' : '?';
-                resource = resource + separator + '_cb=' + Date.now() + '&_r=' + Math.random();
+                // Check if cache-busting parameters already exist
+                if (!resource.includes('_t=') && !resource.includes('_cb=')) {
+                    const separator = resource.includes('?') ? '&' : '?';
+                    resource = resource + separator + '_cb=' + Date.now();
+                }
             }
             
             // Add no-cache headers to config

@@ -484,7 +484,19 @@ function generateReport() {
         .catch(error => {
             console.error('Error generating report:', error);
             hideLoadingState();
-            showError('Failed to generate report. Please check your connection and try again.<br><small>Debug: Check browser console for details or visit <a href="<?= Response::url('reports/test') ?>">reports test page</a></small>');
+            
+            let errorMessage = 'Failed to generate report. Please check your connection and try again.';
+            let debugInfo = 'Check browser console for details or visit <a href="<?= Response::url('reports/test') ?>">reports test page</a>';
+            
+            // Add more specific error information
+            if (error.message) {
+                debugInfo += '<br>Error: ' + error.message;
+            }
+            if (error.stack) {
+                console.error('Error stack:', error.stack);
+            }
+            
+            showError(errorMessage + '<br><small>Debug: ' + debugInfo + '</small>');
         });
 }
 

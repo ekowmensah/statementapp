@@ -187,6 +187,7 @@ class ReportsController
         } catch (Exception $e) {
             error_log("Reports getData error: " . $e->getMessage());
             error_log("Stack trace: " . $e->getTraceAsString());
+            error_log("Request parameters: " . json_encode($_GET));
             
             header('Content-Type: application/json');
             header('Cache-Control: no-cache, no-store, must-revalidate');
@@ -199,7 +200,10 @@ class ReportsController
                 'debug' => [
                     'error_type' => get_class($e),
                     'file' => $e->getFile(),
-                    'line' => $e->getLine()
+                    'line' => $e->getLine(),
+                    'request_params' => $_GET,
+                    'php_version' => PHP_VERSION,
+                    'memory_usage' => memory_get_usage(true)
                 ]
             ]);
         }

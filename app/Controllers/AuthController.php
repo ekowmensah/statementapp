@@ -58,6 +58,8 @@ class AuthController
     {
         // Validate CSRF token
         if (!CSRF::validateRequest()) {
+            // Generate a fresh token for the retry
+            CSRF::generateToken();
             Flash::error('Invalid security token. Please try again.');
             return $this->showLoginForm();
         }
@@ -91,17 +93,22 @@ class AuthController
 
             Flash::success('Welcome back, ' . Auth::user()['name'] . '!');
             
-            // Redirect to intended page or dashboard
+            // Redirect to intended page or dashboard with cache-busting
             $redirect = $_SESSION['intended_url'] ?? null;
             unset($_SESSION['intended_url']);
             
+            // Add cache-busting parameter to prevent stale data
+            $cacheBuster = '?_fresh=' . time() . '&_login=' . uniqid();
+            
             if ($redirect) {
-                // If intended URL is set, it's already a full path, redirect directly
+                // If intended URL is set, add cache-busting
+                $separator = strpos($redirect, '?') !== false ? '&' : '?';
+                $redirect .= $separator . '_fresh=' . time() . '&_login=' . uniqid();
                 header("Location: {$redirect}");
                 exit;
             } else {
-                // Default redirect to dashboard
-                Response::redirect('dashboard');
+                // Default redirect to dashboard with cache-busting
+                Response::redirect('dashboard' . $cacheBuster);
             }
         } else {
             Flash::error('Invalid email or password.');
