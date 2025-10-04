@@ -17,23 +17,38 @@ Upload all application files to your web server. The structure should be:
 
 ```
 your-domain/
-├── public/           # Web root (point your domain here)
-│   ├── index.php
-│   ├── .htaccess
-│   └── assets/
-├── app/
-├── config/
-├── storage/
-└── sql/
+├── .htaccess         # Root redirect to public/
+├── index.php         # Root redirect handler
+├── public/           # Contains the actual application entry point
+│   ├── index.php     # Main application entry
+│   ├── .htaccess     # URL rewriting rules
+│   └── assets/       # CSS, JS, images
+├── app/              # Application code (protected)
+├── config/           # Configuration files (protected)
+├── storage/          # Logs, uploads (protected)
+└── sql/              # Database files (protected)
 ```
+
+**Important:** Users can access your app at `https://yourdomain.com` and it will automatically redirect to the `public/` directory. The `public/` directory should NOT be in the URL.
 
 ### 2. Configure Web Server
 
 #### Apache Configuration
 
-Point your domain's document root to the `public/` directory.
+**Option A: Point Document Root to Application Root (Recommended)**
+```apache
+<VirtualHost *:80>
+    ServerName yourdomain.com
+    DocumentRoot /path/to/your/app
+    
+    <Directory /path/to/your/app>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+```
 
-Example Apache virtual host:
+**Option B: Point Document Root to Public Directory**
 ```apache
 <VirtualHost *:80>
     ServerName yourdomain.com
@@ -107,6 +122,8 @@ DB_PASS=your_database_password
 
 ### 5. Hosting Scenarios
 
+The application uses dynamic base URL detection. Configure based on your hosting setup:
+
 #### Scenario 1: Root Domain (yourdomain.com)
 ```php
 'app' => [
@@ -114,22 +131,27 @@ DB_PASS=your_database_password
     'base_path' => '',
 ]
 ```
+**Access:** `https://yourdomain.com` → redirects to → `https://yourdomain.com/public/`
 
-#### Scenario 2: Subdomain (statements.yourdomain.com)
-```php
-'app' => [
-    'url' => 'https://statements.yourdomain.com',
-    'base_path' => '',
-]
-```
-
-#### Scenario 3: Subdirectory (yourdomain.com/statements)
+#### Scenario 2: Subdirectory (yourdomain.com/statements)
 ```php
 'app' => [
     'url' => 'https://yourdomain.com/statements',
     'base_path' => '/statements',
 ]
 ```
+**Access:** `https://yourdomain.com/statements` → redirects to → `https://yourdomain.com/statements/public/`
+
+#### Scenario 3: Subdomain (statements.yourdomain.com)
+```php
+'app' => [
+    'url' => 'https://statements.yourdomain.com',
+    'base_path' => '',
+]
+```
+**Access:** `https://statements.yourdomain.com` → redirects to → `https://statements.yourdomain.com/public/`
+
+**Important:** The redirect is handled automatically by `.htaccess` and `index.php` using dynamic base URL detection. No hardcoded paths are used.
 
 ### 6. File Permissions
 

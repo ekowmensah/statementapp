@@ -226,12 +226,25 @@ class Response
     }
 
     /**
-     * Generate URL
+     * Generate URL with dynamic base path detection
      */
     public static function url($path = '')
     {
+        // Try to get base path from config first
         $config = require __DIR__ . '/../../config/config.php';
         $basePath = $config['app']['base_path'] ?? '';
+        
+        // If no base path in config, detect it dynamically
+        if (!$basePath) {
+            $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+            if ($scriptName) {
+                // Extract base path from script name (remove /public/index.php)
+                $basePath = dirname(dirname($scriptName));
+                if ($basePath === '/' || $basePath === '\\') {
+                    $basePath = '';
+                }
+            }
+        }
         
         // Clean up the path
         $path = ltrim($path, '/');

@@ -24,7 +24,9 @@ return [
     'app' => [
         'name' => 'Daily Statement App',
         // For production, set these based on your hosting environment:
-        // Example for subdomain: https://statements.yourdomain.com
+        // The URL should NOT include /public - the redirect handles that
+        
+        // Example for root domain: https://yourdomain.com
         'url' => $_ENV['APP_URL'] ?? 'https://yourdomain.com',
         'base_path' => $_ENV['APP_BASE_PATH'] ?? '',
         
@@ -32,8 +34,8 @@ return [
         // 'url' => 'https://yourdomain.com/statements',
         // 'base_path' => '/statements',
         
-        // Example for root domain: https://yourdomain.com
-        // 'url' => 'https://yourdomain.com',
+        // Example for subdomain: https://statements.yourdomain.com
+        // 'url' => 'https://statements.yourdomain.com',
         // 'base_path' => '',
         
         'timezone' => $_ENV['APP_TIMEZONE'] ?? 'America/New_York',

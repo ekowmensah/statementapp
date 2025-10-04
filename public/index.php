@@ -41,6 +41,11 @@ if ($basePath && strpos($route, $basePath) === 0) {
     $route = substr($route, strlen($basePath));
 }
 
+// Remove /public from the route if present
+if (strpos($route, '/public') === 0) {
+    $route = substr($route, 7); // Remove '/public'
+}
+
 // Ensure route starts with /
 if (!$route || $route[0] !== '/') {
     $route = '/' . $route;

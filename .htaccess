@@ -1,0 +1,23 @@
+RewriteEngine On
+
+# Redirect all requests to public directory if file/directory doesn't exist
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !public/
+RewriteRule ^(.*)$ public/$1 [L,QSA]
+
+# Prevent direct access to sensitive directories
+RewriteRule ^(app|config|storage|sql)/ - [F,L]
+
+# Security headers
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# Prevent access to sensitive files
+<FilesMatch "\.(env|md|sql|log)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
