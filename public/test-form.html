@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Form</title>
+</head>
+<body>
+    <h1>Test Form</h1>
+    
+    <form method="POST" action="http://localhost/accountstatement/public/rates/create">
+        <input type="hidden" name="_token" value="test-token">
+        <input type="text" name="effective_on" value="2024-01-01" placeholder="Effective Date">
+        <input type="text" name="rate_ag1" value="21" placeholder="AG1 Rate">
+        <input type="text" name="rate_ag2" value="4" placeholder="AG2 Rate">
+        <input type="text" name="note" value="Test rate" placeholder="Note">
+        <button type="submit">Submit Test Rate</button>
+    </form>
+    
+    <script>
+    document.querySelector('form').addEventListener('submit', function(e) {
+        console.log('Form action:', this.action);
+        console.log('Form method:', this.method);
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,416 @@
+<?php
+/**
+ * Daily Transaction Model
+ * Handles daily transaction data operations
+ */
+
+class DailyTxn
+{
+    private $db;
+    
+    public function __construct()
+    {
+        $this->db = Database::getInstance();
+    }
+
+    /**
+     * Find transaction by ID
+     */
+    public function find($id)
+    {
+        return $this->db->fetch(
+            "SELECT t.*, 
+                    uc.name as created_by_name, 
+                    uu.name as updated_by_name 
+             FROM daily_txn t 
+             LEFT JOIN users uc ON t.created_by = uc.id 
+             LEFT JOIN users uu ON t.updated_by = uu.id 
+             WHERE t.id = ?",
+            [$id]
+        );
+    }
+
+    /**
+     * Find transaction by date
+     */
+    public function findByDate($date)
+    {
+        return $this->db->fetch(
+            "SELECT t.*, 
+                    uc.name as created_by_name, 
+                    uu.name as updated_by_name 
+             FROM daily_txn t 
+             LEFT JOIN users uc ON t.created_by = uc.id 
+             LEFT JOIN users uu ON t.updated_by = uu.id 
+             WHERE t.txn_date = ?",
+            [$date]
+        );
+    }
+
+    /**
+     * Get all transactions with computed values
+     */
+    public function getAllComputed($limit = null, $offset = 0, $orderBy = 'txn_date DESC')
+    {
+        $sql = "SELECT * FROM v_daily_txn ORDER BY {$orderBy}";
+        
+        if ($limit) {
+            $sql .= " LIMIT ? OFFSET ?";
+            return $this->db->fetchAll($sql, [$limit, $offset]);
+        }
+        
+        return $this->db->fetchAll($sql);
+    }
+
+    /**
+     * Get transactions for date range with computed values
+     */
+    public function getByDateRangeComputed($startDate, $endDate, $orderBy = 'txn_date ASC')
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM v_daily_txn 
+             WHERE txn_date BETWEEN ? AND ? 
+             ORDER BY {$orderBy}",
+            [$startDate, $endDate]
+        );
+    }
+
+    /**
+     * Get transactions for specific month with computed values
+     */
+    public function getByMonthComputed($year, $month)
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM v_daily_txn 
+             WHERE YEAR(txn_date) = ? AND MONTH(txn_date) = ? 
+             ORDER BY txn_date ASC",
+            [$year, $month]
+        );
+    }
+
+    /**
+     * Create new transaction
+     */
+    public function create($data)
+    {
+        return $this->db->insert(
+            "INSERT INTO daily_txn (txn_date, ca, ga, je, note, created_by) 
+             VALUES (?, ?, ?, ?, ?, ?)",
+            [
+                $data['txn_date'],
+                $data['ca'],
+                $data['ga'],
+                $data['je'],
+                $data['note'] ?? null,
+                $data['created_by']
+            ]
+        );
+    }
+
+    /**
+     * Update transaction
+     */
+    public function update($id, $data)
+    {
+        $fields = [];
+        $params = [];
+        
+        if (isset($data['txn_date'])) {
+            $fields[] = 'txn_date = ?';
+            $params[] = $data['txn_date'];
+        }
+        
+        if (isset($data['ca'])) {
+            $fields[] = 'ca = ?';
+            $params[] = $data['ca'];
+        }
+        
+        if (isset($data['ga'])) {
+            $fields[] = 'ga = ?';
+            $params[] = $data['ga'];
+        }
+        
+        if (isset($data['je'])) {
+            $fields[] = 'je = ?';
+            $params[] = $data['je'];
+        }
+        
+        if (isset($data['note'])) {
+            $fields[] = 'note = ?';
+            $params[] = $data['note'];
+        }
+        
+        if (isset($data['updated_by'])) {
+            $fields[] = 'updated_by = ?';
+            $params[] = $data['updated_by'];
+        }
+
+        if (empty($fields)) {
+            return false;
+        }
+
+        $params[] = $id;
+        
+        return $this->db->update(
+            "UPDATE daily_txn SET " . implode(', ', $fields) . " WHERE id = ?",
+            $params
+        );
+    }
+
+    /**
+     * Delete transaction
+     */
+    public function delete($id)
+    {
+        return $this->db->delete("DELETE FROM daily_txn WHERE id = ?", [$id]);
+    }
+
+    /**
+     * Check if date exists
+     */
+    public function dateExists($date, $excludeId = null)
+    {
+        $sql = "SELECT COUNT(*) as count FROM daily_txn WHERE txn_date = ?";
+        $params = [$date];
+        
+        if ($excludeId) {
+            $sql .= " AND id != ?";
+            $params[] = $excludeId;
+        }
+        
+        $result = $this->db->fetch($sql, $params);
+        return $result['count'] > 0;
+    }
+
+    /**
+     * Get monthly totals
+     */
+    public function getMonthlyTotals($year, $month)
+    {
+        return $this->db->fetch(
+            "SELECT * FROM v_monthly_totals 
+             WHERE year_num = ? AND month_num = ?",
+            [$year, $month]
+        );
+    }
+
+    /**
+     * Get yearly totals
+     */
+    public function getYearlyTotals($year)
+    {
+        return $this->db->fetch(
+            "SELECT 
+                 SUM(total_ca) as total_ca,
+                 SUM(total_ag1) as total_ag1,
+                 SUM(total_av1) as total_av1,
+                 SUM(total_ag2) as total_ag2,
+                 SUM(total_av2) as total_av2,
+                 SUM(total_ga) as total_ga,
+                 SUM(total_re) as total_re,
+                 SUM(total_je) as total_je,
+                 SUM(total_fi) as total_fi,
+                 SUM(days_count) as total_days
+             FROM v_monthly_totals 
+             WHERE year_num = ?",
+            [$year]
+        );
+    }
+
+    /**
+     * Get recent transactions
+     */
+    public function getRecent($limit = 10)
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM v_daily_txn 
+             ORDER BY txn_date DESC 
+             LIMIT ?",
+            [$limit]
+        );
+    }
+
+    /**
+     * Get KPI data for dashboard
+     */
+    public function getKPIs($year, $month)
+    {
+        $monthlyTotals = $this->getMonthlyTotals($year, $month);
+        
+        if (!$monthlyTotals) {
+            return [
+                'mtd_ca' => 0,
+                'mtd_ga' => 0,
+                'mtd_je' => 0,
+                'mtd_fi' => 0,
+                'days_count' => 0
+            ];
+        }
+        
+        return [
+            'mtd_ca' => $monthlyTotals['total_ca'],
+            'mtd_ga' => $monthlyTotals['total_ga'],
+            'mtd_je' => $monthlyTotals['total_je'],
+            'mtd_fi' => $monthlyTotals['total_fi'],
+            'days_count' => $monthlyTotals['days_count']
+        ];
+    }
+
+    /**
+     * Get chart data for dashboard
+     */
+    public function getChartData($year, $month)
+    {
+        $transactions = $this->getByMonthComputed($year, $month);
+        
+        $chartData = [
+            'labels' => [],
+            'fi_data' => [],
+            'ca_data' => []
+        ];
+        
+        foreach ($transactions as $txn) {
+            $chartData['labels'][] = date('M j', strtotime($txn['txn_date']));
+            $chartData['fi_data'][] = (float)$txn['fi'];
+            $chartData['ca_data'][] = (float)$txn['ca'];
+        }
+        
+        return $chartData;
+    }
+
+    /**
+     * Validate transaction data
+     */
+    public function validate($data, $excludeId = null)
+    {
+        $validator = new Validate($data);
+        
+        $validator
+            ->required('txn_date', 'Transaction date is required')
+            ->date('txn_date', 'Y-m-d', 'Transaction date must be a valid date')
+            ->required('ca', 'CA amount is required')
+            ->numeric('ca', 'CA amount must be a number')
+            ->min('ca', 0, 'CA amount must be at least 0')
+            ->decimal('ca', 2, 'CA amount cannot have more than 2 decimal places')
+            ->required('ga', 'GA amount is required')
+            ->numeric('ga', 'GA amount must be a number')
+            ->min('ga', 0, 'GA amount must be at least 0')
+            ->decimal('ga', 2, 'GA amount cannot have more than 2 decimal places')
+            ->required('je', 'JE amount is required')
+            ->numeric('je', 'JE amount must be a number')
+            ->min('je', 0, 'JE amount must be at least 0')
+            ->decimal('je', 2, 'JE amount cannot have more than 2 decimal places')
+            ->required('rate_ag1', 'AG1 rate is required')
+            ->numeric('rate_ag1', 'AG1 rate must be a number')
+            ->min('rate_ag1', 0, 'AG1 rate must be at least 0')
+            ->max('rate_ag1', 100, 'AG1 rate cannot exceed 100%')
+            ->required('rate_ag2', 'AG2 rate is required')
+            ->numeric('rate_ag2', 'AG2 rate must be a number')
+            ->min('rate_ag2', 0, 'AG2 rate must be at least 0')
+            ->max('rate_ag2', 100, 'AG2 rate cannot exceed 100%');
+
+        // Check unique date
+        if (isset($data['txn_date'])) {
+            $validator->custom('txn_date', function($value) use ($excludeId) {
+                return !$this->dateExists($value, $excludeId);
+            }, 'A transaction already exists for this date');
+        }
+
+        return $validator;
+    }
+
+    /**
+     * Get count of transactions
+     */
+    public function getCount()
+    {
+        $result = $this->db->fetch("SELECT COUNT(*) as count FROM daily_txn");
+        return $result['count'];
+    }
+
+    /**
+     * Search transactions
+     */
+    public function search($query, $limit = 50)
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM v_daily_txn 
+             WHERE note LIKE ? OR txn_date LIKE ? 
+             ORDER BY txn_date DESC 
+             LIMIT ?",
+            ["%{$query}%", "%{$query}%", $limit]
+        );
+    }
+
+    /**
+     * Get transactions for export
+     */
+    public function getForExport($startDate, $endDate)
+    {
+        return $this->db->fetchAll(
+            "SELECT 
+                 txn_date as 'Date',
+                 ca as 'CA',
+                 ag1 as 'AG1',
+                 av1 as 'AV1',
+                 ag2 as 'AG2',
+                 av2 as 'AV2',
+                 ga as 'GA',
+                 re as 'RE',
+                 je as 'JE',
+                 fi as 'FI',
+                 note as 'Note'
+             FROM v_daily_txn 
+             WHERE txn_date BETWEEN ? AND ? 
+             ORDER BY txn_date ASC",
+            [$startDate, $endDate]
+        );
+    }
+
+    /**
+     * Get summary statistics
+     */
+    public function getSummaryStats($startDate = null, $endDate = null)
+    {
+        $whereClause = '';
+        $params = [];
+        
+        if ($startDate && $endDate) {
+            $whereClause = 'WHERE txn_date BETWEEN ? AND ?';
+            $params = [$startDate, $endDate];
+        }
+        
+        return $this->db->fetch(
+            "SELECT 
+                 COUNT(*) as total_days,
+                 ROUND(SUM(ca), 2) as total_ca,
+                 ROUND(SUM(ga), 2) as total_ga,
+                 ROUND(SUM(je), 2) as total_je,
+                 ROUND(SUM(fi), 2) as total_fi,
+                 ROUND(AVG(ca), 2) as avg_ca,
+                 ROUND(AVG(fi), 2) as avg_fi,
+                 ROUND(MAX(ca), 2) as max_ca,
+                 ROUND(MIN(ca), 2) as min_ca
+             FROM v_daily_txn 
+             {$whereClause}",
+            $params
+        );
+    }
+
+    /**
+     * Check if month is locked for transaction date
+     */
+    public function isMonthLocked($date)
+    {
+        $year = date('Y', strtotime($date));
+        $month = date('n', strtotime($date));
+        
+        $result = $this->db->fetch(
+            "SELECT COUNT(*) as count FROM month_locks 
+             WHERE year_num = ? AND month_num = ?",
+            [$year, $month]
+        );
+        
+        return $result['count'] > 0;
+    }
+}
