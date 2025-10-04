@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate Icons</title>
+</head>
+<body>
+    <h2>Icon Generator</h2>
+    <p>This page generates PNG icons from the SVG favicon.</p>
+    
+    <canvas id="canvas192" width="192" height="192" style="border: 1px solid #ccc; margin: 10px;"></canvas>
+    <canvas id="canvas512" width="512" height="512" style="border: 1px solid #ccc; margin: 10px;"></canvas>
+    
+    <br>
+    <button onclick="downloadIcon(192)">Download 192x192</button>
+    <button onclick="downloadIcon(512)">Download 512x512</button>
+    
+    <script>
+        function generateIcon(size) {
+            const canvas = document.getElementById(`canvas${size}`);
+            const ctx = canvas.getContext('2d');
+            
+            // Create gradient
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+            
+            // Background circle
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, size/2 - 10, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // White border
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            
+            // Calculator body
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillRect(size*0.25, size*0.2, size*0.5, size*0.6);
+            
+            // Screen
+            ctx.fillStyle = '#333';
+            ctx.fillRect(size*0.3, size*0.25, size*0.4, size*0.15);
+            
+            // Buttons
+            const buttonSize = size * 0.03;
+            const positions = [
+                [0.35, 0.5], [0.45, 0.5], [0.55, 0.5], [0.65, 0.5],
+                [0.35, 0.6], [0.45, 0.6], [0.55, 0.6], [0.65, 0.6],
+                [0.35, 0.7], [0.45, 0.7], [0.55, 0.7], [0.65, 0.7]
+            ];
+            
+            positions.forEach((pos, i) => {
+                ctx.fillStyle = (i === 7 || i === 11) ? '#764ba2' : '#667eea';
+                ctx.beginPath();
+                ctx.arc(pos[0] * size, pos[1] * size, buttonSize, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+        }
+        
+        function downloadIcon(size) {
+            const canvas = document.getElementById(`canvas${size}`);
+            const link = document.createElement('a');
+            link.download = `icon-${size}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        // Generate icons on load
+        generateIcon(192);
+        generateIcon(512);
+    </script>
+</body>
+</html>

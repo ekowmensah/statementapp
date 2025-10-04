@@ -146,10 +146,10 @@
                 </div>
                 
                 <div class="footer-text">
-                    <small>
+                    <!-- <small>
                         &copy; <?= date('Y') ?> Daily Statement App. 
                         Built with <i class="bi bi-heart-fill text-danger"></i> using CoreUI.
-                    </small>
+                    </small>  -->
                 </div>
             </div>
         </div>
