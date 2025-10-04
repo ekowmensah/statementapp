@@ -317,11 +317,23 @@
                 });
             }
             
-            // Force reload from server
-            if (window.location.reload) {
-                window.location.reload(true);
+            // Clear localStorage and sessionStorage
+            if (typeof Storage !== "undefined") {
+                localStorage.clear();
+                sessionStorage.clear();
             }
+            
+            // Force reload from server with cache bypass
+            window.location.href = window.location.href + (window.location.href.includes('?') ? '&' : '?') + '_refresh=' + Date.now();
         }
+        
+        // Add global keyboard shortcut for cache clearing (Ctrl+Shift+R)
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+                e.preventDefault();
+                clearBrowserCache();
+            }
+        });
         
         // Add cache-busting to all fetch requests globally
         const originalFetch = window.fetch;
@@ -331,18 +343,26 @@
             // Add cache-busting to URL if it's a string
             if (typeof resource === 'string') {
                 const separator = resource.includes('?') ? '&' : '?';
-                resource = resource + separator + '_cb=' + Date.now();
+                resource = resource + separator + '_cb=' + Date.now() + '&_r=' + Math.random();
             }
             
             // Add no-cache headers to config
             config = config || {};
             config.cache = 'no-cache';
             config.headers = config.headers || {};
-            config.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+            config.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0';
             config.headers['Pragma'] = 'no-cache';
+            config.headers['Expires'] = '0';
             
             return originalFetch(resource, config);
         };
+        
+        // Force page refresh on browser back/forward
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                window.location.reload(true);
+            }
+        });
 
         // Enhanced logout handling with CSRF error recovery
         document.addEventListener('DOMContentLoaded', function() {

@@ -6,9 +6,11 @@
     <title><?= htmlspecialchars($data['title'] ?? 'Daily Statement App') ?></title>
     
     <!-- Prevent caching of dynamic content -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <meta http-equiv="Last-Modified" content="<?= gmdate('D, d M Y H:i:s') ?> GMT">
+    <meta http-equiv="ETag" content="<?= uniqid() ?>">
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="<?= Response::url('favicon.svg') ?>">

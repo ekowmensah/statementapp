@@ -127,10 +127,14 @@ class AuthController
             error_log('Session token: ' . ($_SESSION['csrf_token'] ?? 'missing'));
             error_log('Session ID: ' . session_id());
             
+            // Clear all sessions and force fresh start
+            session_destroy();
+            session_start();
+            
             // Generate a new token for next attempt
             CSRF::generateToken();
             
-            Flash::error('Security token validation failed. Please try logging out again.');
+            Flash::error('Security token validation failed. Please refresh the page and try again.');
             Response::redirect('dashboard');
         }
 
