@@ -305,5 +305,60 @@
         </script>
     <?php endif; ?>
 
+    <script>
+        // Enhanced logout handling with CSRF error recovery
+        document.addEventListener('DOMContentLoaded', function() {
+            const logoutForm = document.getElementById('logoutForm');
+            const logoutFallback = document.getElementById('logoutFallback');
+            
+            if (logoutForm) {
+                logoutForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    // Show loading state
+                    const button = this.querySelector('button');
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '<i class="spinner-border spinner-border-sm me-2"></i>Logging out...';
+                    button.disabled = true;
+                    
+                    // Submit form via fetch for better error handling
+                    const formData = new FormData(this);
+                    
+                    fetch(this.action, {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            // Successful logout - redirect
+                            window.location.href = '<?= Response::url('login') ?>';
+                        } else {
+                            // CSRF or other error - show fallback
+                            console.error('Logout failed, showing fallback option');
+                            button.innerHTML = originalText;
+                            button.disabled = false;
+                            
+                            if (logoutFallback) {
+                                logoutFallback.classList.remove('d-none');
+                                logoutForm.classList.add('d-none');
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Logout error:', error);
+                        // Show fallback on any error
+                        button.innerHTML = originalText;
+                        button.disabled = false;
+                        
+                        if (logoutFallback) {
+                            logoutFallback.classList.remove('d-none');
+                            logoutForm.classList.add('d-none');
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+
 </body>
 </html>

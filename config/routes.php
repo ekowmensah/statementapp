@@ -8,6 +8,7 @@ return [
     // Authentication routes
     'GET|POST /login' => 'AuthController@login',
     'POST /logout' => 'AuthController@logout',
+    'GET /logout' => 'AuthController@logoutGet',
 
     // Dashboard
     'GET /' => 'DashboardController@index',

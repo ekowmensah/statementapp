@@ -367,13 +367,17 @@
                                 </div>
                             </div>
                             <div class="dropdown-divider"></div>
-                            <form method="POST" action="<?= Response::url('logout') ?>" class="d-inline">
+                            <form method="POST" action="<?= Response::url('logout') ?>" class="d-inline" id="logoutForm">
                                 <?= CSRF::field() ?>
                                 <button type="submit" class="dropdown-item">
                                     <i class="bi bi-box-arrow-right me-2"></i>
                                     Logout
                                 </button>
                             </form>
+                            <a href="<?= Response::url('logout') ?>" class="dropdown-item d-none" id="logoutFallback">
+                                <i class="bi bi-box-arrow-right me-2"></i>
+                                Logout (Fallback)
+                            </a>
                         </div>
                     </div>
                 </div>

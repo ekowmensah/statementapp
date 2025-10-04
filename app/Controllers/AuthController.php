@@ -118,9 +118,36 @@ class AuthController
             Response::redirect('dashboard');
         }
 
+        // Initialize CSRF to ensure session is started
+        CSRF::init();
+        
         // Validate CSRF token
         if (!CSRF::validateRequest()) {
-            Flash::error('Invalid security token.');
+            error_log('CSRF validation failed for logout. Token in POST: ' . ($_POST['_token'] ?? 'missing'));
+            error_log('Session token: ' . ($_SESSION['csrf_token'] ?? 'missing'));
+            error_log('Session ID: ' . session_id());
+            
+            // Generate a new token for next attempt
+            CSRF::generateToken();
+            
+            Flash::error('Security token validation failed. Please try logging out again.');
+            Response::redirect('dashboard');
+        }
+
+        // Clear remember token
+        $this->clearRememberToken();
+
+        Auth::logout();
+        Flash::success('You have been logged out successfully.');
+        Response::redirect('login');
+    }
+
+    /**
+     * Handle GET logout (fallback for CSRF issues)
+     */
+    public function logoutGet()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
             Response::redirect('dashboard');
         }
 

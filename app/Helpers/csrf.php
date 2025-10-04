@@ -94,8 +94,7 @@ class CSRF
         }
         
         if (!$token || !self::validateToken($token)) {
-            header('HTTP/1.1 403 Forbidden');
-            die('CSRF token validation failed.');
+            return false;
         }
         
         return true;
