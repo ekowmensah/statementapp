@@ -122,15 +122,80 @@ class ReportsController
     }
 
     /**
+     * Simple API test endpoint
+     */
+    public function apiTest()
+    {
+        header('Content-Type: application/json');
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'API endpoint is working',
+            'timestamp' => date('Y-m-d H:i:s'),
+            'user' => Auth::check() ? Auth::user()['name'] : 'Not authenticated'
+        ]);
+        exit;
+    }
+
+    /**
      * Get report data (API)
      */
     public function getData()
     {
-        Auth::requirePermission('view_reports');
+        // Suppress warnings to prevent HTML output in JSON response
+        error_reporting(E_ERROR | E_PARSE);
+        
+        // Ensure we always return JSON, even on fatal errors
+        register_shutdown_function(function() {
+            $error = error_get_last();
+            if ($error && $error['type'] === E_ERROR) {
+                if (!headers_sent()) {
+                    header('Content-Type: application/json');
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'Fatal error occurred',
+                        'debug' => ['error' => $error['message'], 'file' => $error['file'], 'line' => $error['line']]
+                    ]);
+                }
+            }
+        });
+        
+        // Check authentication and permissions for API endpoint
+        if (!Auth::check()) {
+            header('Content-Type: application/json');
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+            
+            echo json_encode([
+                'success' => false,
+                'message' => 'Authentication required',
+                'debug' => ['error_type' => 'AuthenticationError']
+            ]);
+            exit;
+        }
+        
+        if (!Auth::can('view_reports')) {
+            header('Content-Type: application/json');
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+            
+            echo json_encode([
+                'success' => false,
+                'message' => 'Insufficient permissions to view reports',
+                'debug' => ['error_type' => 'PermissionError']
+            ]);
+            exit;
+        }
 
         try {
             // Log request parameters for debugging
             error_log("Reports getData request: " . json_encode($_GET));
+            error_log("Reports getData method reached successfully");
 
             // Validate and sanitize inputs
             $reportType = $_GET['report_type'] ?? 'financial_summary';
@@ -180,7 +245,7 @@ class ReportsController
                     'date_range' => $startDate . ' to ' . $endDate,
                     'group_by' => $groupBy,
                     'data_count' => is_array($reportData) ? count($reportData) : 'N/A',
-                    'data_type' => is_array($reportData) ? gettype($reportData[0]) : gettype($reportData)
+                    'data_type' => is_array($reportData) && count($reportData) > 0 ? gettype($reportData[0]) : gettype($reportData)
                 ]
             ]);
 

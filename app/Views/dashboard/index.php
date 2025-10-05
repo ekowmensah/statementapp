@@ -244,14 +244,14 @@ function appUrl($path) {
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <div>
                         <h6 class="card-title mb-0">⚡ Efficiency</h6>
-                        <small class="opacity-75">Performance Ratio</small>
+                        <small class="opacity-75">Gross Margin %</small>
                     </div>
                     <i class="bi bi-speedometer2 fs-3 opacity-75"></i>
                 </div>
                 <h2 class="kpi-value"><?= round($data['kpis']['efficiency_ratio'] ?? 0, 1) ?>%</h2>
                 <div class="kpi-change">
                     <i class="bi bi-lightning"></i>
-                    <span>Profitability: <?= round($data['kpis']['profitability_ratio'] ?? 0, 1) ?>%</span>
+                    <span id="profitability-display">Net Profit Margin: <?= round($data['kpis']['profitability_ratio'] ?? 0, 1) ?>%</span>
                 </div>
             </div>
         </div>
@@ -727,7 +727,7 @@ function updateKPIs(year, month) {
                 if (kpiElements.ytd_fi_formatted && kpis.ytd_fi_formatted) {
                     kpiElements.ytd_fi_formatted.textContent = kpis.ytd_fi_formatted;
                 }
-                if (kpiElements.efficiency_ratio && kpis.efficiency_ratio) {
+                if (kpiElements.efficiency_ratio && kpis.efficiency_ratio !== undefined) {
                     kpiElements.efficiency_ratio.textContent = kpis.efficiency_ratio + '%';
                 }
                 
@@ -735,6 +735,12 @@ function updateKPIs(year, month) {
                 const ytdTransactionElement = document.getElementById('ytd-transaction-count');
                 if (ytdTransactionElement && kpis.ytd_transaction_count !== undefined) {
                     ytdTransactionElement.textContent = kpis.ytd_transaction_count + ' transactions';
+                }
+                
+                // Update profitability display
+                const profitabilityElement = document.getElementById('profitability-display');
+                if (profitabilityElement && kpis.profitability_ratio !== undefined) {
+                    profitabilityElement.textContent = 'Net Profit Margin: ' + Math.round(kpis.profitability_ratio * 10) / 10 + '%';
                 }
                 
                 // Update Performance Metrics

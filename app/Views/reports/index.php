@@ -394,8 +394,14 @@ document.addEventListener('DOMContentLoaded', function() {
         startDate.max = this.value;
     });
     
-    // Select first report type by default
-    selectReportType('financial_summary');
+    // Select first available report type by default
+    const firstReportCard = document.querySelector('.report-card[data-report-type]');
+    if (firstReportCard) {
+        const firstReportType = firstReportCard.getAttribute('data-report-type');
+        selectReportType(firstReportType);
+    } else {
+        console.warn('No report cards found');
+    }
     
     console.log('Reports page initialized successfully');
 });
@@ -405,10 +411,22 @@ function selectReportType(reportType) {
     document.querySelectorAll('.report-card').forEach(card => {
         card.classList.remove('active');
     });
-    document.querySelector(`[data-report-type="${reportType}"]`).classList.add('active');
+    
+    const targetCard = document.querySelector(`[data-report-type="${reportType}"]`);
+    if (targetCard) {
+        targetCard.classList.add('active');
+    } else {
+        console.error('Report card not found for type:', reportType);
+        return;
+    }
     
     // Update form
-    document.getElementById('report_type').value = reportType;
+    const reportTypeInput = document.getElementById('report_type');
+    if (reportTypeInput) {
+        reportTypeInput.value = reportType;
+    } else {
+        console.error('Report type input not found');
+    }
     
     console.log('Selected report type:', reportType);
 }
@@ -469,7 +487,17 @@ function generateReport() {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            return response.json();
+            
+            // Clone response to read text if JSON parsing fails
+            const responseClone = response.clone();
+            
+            return response.json().catch(jsonError => {
+                // If JSON parsing fails, get the raw text
+                return responseClone.text().then(text => {
+                    console.error('Failed to parse JSON. Raw response:', text);
+                    throw new Error(`Invalid JSON response. Raw response: ${text.substring(0, 200)}...`);
+                });
+            });
         })
         .then(data => {
             if (data.success) {
@@ -497,6 +525,9 @@ function generateReport() {
             }
             
             showError(errorMessage + '<br><small>Debug: ' + debugInfo + '</small>');
+            
+            // Also log the raw response for debugging
+            console.error('Raw response that caused JSON parse error:', error);
         });
 }
 

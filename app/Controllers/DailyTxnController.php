@@ -71,6 +71,9 @@ class DailyTxnController
         $isLocked = $this->checkLockStatus($dateRange);
         $lockInfo = $isLocked ? $this->monthLockModel->getLockInfo($year, $month) : null;
 
+        // Calculate totals for the filtered period
+        $totals = $this->calculateFilteredTotals($dateRange, $search);
+        
         // Get available year range from database
         $yearRange = $this->getAvailableYearRange();
 
@@ -78,6 +81,8 @@ class DailyTxnController
             'title' => 'Daily Transactions - Daily Statement App',
             'transactions' => $transactions,
             'pagination' => $pagination,
+            'totals' => $totals,
+            'total_pages' => $pagination['total_pages'],
             'can_create' => Auth::can('create_daily'),
             'can_edit' => Auth::can('edit_daily'),
             'can_delete' => Auth::can('delete_daily'),

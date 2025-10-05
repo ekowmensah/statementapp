@@ -186,6 +186,9 @@ class DashboardController
             [$year, $month]
         );
         
+        // Debug current month data
+        error_log("Current month data for {$year}-{$month}: " . json_encode($currentData));
+        
         // Year to date data
         $ytdData = $db->fetch(
             "SELECT 
@@ -229,23 +232,37 @@ class DashboardController
     }
 
     /**
-     * Calculate efficiency ratio
+     * Calculate efficiency ratio (Gross Margin: (CA - GA) / CA * 100)
+     * This shows what percentage of revenue remains after direct expenses
      */
     private function calculateEfficiencyRatio($ca, $ga)
     {
-        return $ca > 0 ? round((($ca - $ga) / $ca) * 100, 2) : 0;
+        if ($ca <= 0) return 0;
+        
+        $efficiency = round((($ca - $ga) / $ca) * 100, 2);
+        
+        // Debug logging
+        error_log("Efficiency calculation: CA=$ca, GA=$ga, Efficiency=$efficiency%");
+        
+        return $efficiency;
     }
 
     /**
-     * Get available year range from database
-     * Calculate Profitability Ratio
+     * Calculate Profitability Ratio: (Net Profit ÷ Revenue) × 100
+     * FI = Net Profit (Final Income after all deductions: AG1, AG2, GA, JE)
+     * CA = Revenue (Total Income)
      */
     private function calculateProfitabilityRatio($data)
     {
-        $totalRevenue = $data['mtd_ca'] ?? 0;
-        $totalProfit = $data['mtd_fi'] ?? 0;
+        $revenue = $data['mtd_ca'] ?? 0;
+        $netProfit = $data['mtd_fi'] ?? 0;  // FI is Net Profit in this system
         
-        return $totalRevenue > 0 ? ($totalProfit / $totalRevenue) * 100 : 0;
+        $profitability = $revenue > 0 ? ($netProfit / $revenue) * 100 : 0;
+        
+        // Debug logging with proper terminology
+        error_log("Profitability calculation: Revenue(CA)=$revenue, Net Profit(FI)=$netProfit, Profitability=$profitability%");
+        
+        return $profitability;
     }
 
     /**
@@ -261,7 +278,8 @@ class DashboardController
             $txn['fi_formatted'] = Money::format($txn['fi']);
             $txn['ag1_rate_percent'] = round($txn['rate_ag1'] * 100, 2);
             $txn['ag2_rate_percent'] = round($txn['rate_ag2'] * 100, 2);
-            $txn['efficiency'] = $txn['ca'] > 0 ? round(($txn['fi'] / $txn['ca']) * 100, 1) : 0;
+            // Calculate efficiency as gross margin: (CA - GA) / CA * 100
+            $txn['efficiency'] = $txn['ca'] > 0 ? round((($txn['ca'] - $txn['ga']) / $txn['ca']) * 100, 1) : 0;
         }
         
         return $transactions;
