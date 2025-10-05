@@ -908,7 +908,8 @@ function updateDetailedAnalysis(reportData) {
 }
 
 function generateCAAnalysisCards(reportData) {
-    const { growth, benchmarks } = reportData;
+    const growth = reportData.growth || { trend: 'stable', rate: 0, recent_average: 0, earlier_average: 0 };
+    const benchmarks = reportData.benchmarks || { profitability_ratio: 0, performance_rating: 'unknown' };
     
     return `
         <div class="col-md-6">
@@ -978,7 +979,8 @@ function generateCAAnalysisCards(reportData) {
 }
 
 function generateGAAnalysisCards(reportData) {
-    const { efficiency, cost_control } = reportData;
+    const efficiency = reportData.efficiency || { efficiency_ratio: 0, cost_per_transaction: 0, total_expenses: 0 };
+    const cost_control = reportData.cost_control || { budget_utilization: 0, avg_spend: 0, control_status: 'unknown' };
     
     return `
         <div class="col-md-6">
@@ -1043,7 +1045,8 @@ function generateGAAnalysisCards(reportData) {
 }
 
 function generateREAnalysisCards(reportData) {
-    const { optimization, performance } = reportData;
+    const optimization = reportData.optimization || { enhancement_ratio: 0, average_enhancement: 0, optimization_level: 'unknown' };
+    const performance = reportData.performance || { contribution_to_profit: 0, performance_score: 0, status: 'unknown' };
     
     return `
         <div class="col-md-6">
@@ -1108,7 +1111,8 @@ function generateREAnalysisCards(reportData) {
 }
 
 function generateJEAnalysisCards(reportData) {
-    const { allocation, optimization } = reportData;
+    const allocation = reportData.allocation || { allocation_ratio: 0, total_allocation: 0, efficiency_score: 0 };
+    const optimization = reportData.optimization || { optimization_potential: 'unknown', stability_score: 0, volatility: 0 };
     
     return `
         <div class="col-md-6">

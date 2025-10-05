@@ -983,6 +983,20 @@ class ReportsController
                         ]
                     ],
                     'summary' => ['ga' => ['total' => 0, 'average' => 0, 'max' => 0, 'min' => 0, 'count' => 0]],
+                    'efficiency' => [
+                        'efficiency_ratio' => 0,
+                        'cost_per_transaction' => 0,
+                        'total_expenses' => 0,
+                        'efficiency_rating' => 'no_data'
+                    ],
+                    'cost_control' => [
+                        'budget' => 0,
+                        'avg_spend' => 0,
+                        'budget_utilization' => 0,
+                        'variance' => 0,
+                        'control_score' => 0
+                    ],
+                    'table' => [],
                     'insights' => [[
                         'type' => 'info',
                         'title' => 'No Data Available',
