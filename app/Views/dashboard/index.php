@@ -257,56 +257,83 @@ function appUrl($path) {
         </div>
     </div>
 </div>
-
-<!-- Performance Metrics Row -->
+<!-- Performance Metrics -->
 <div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Performance Metrics</h5>
+  <div class="col-12">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-primary text-white d-flex align-items-center">
+        <i class="bi bi-graph-up-arrow me-2"></i>
+        <h5 class="mb-0">Performance Metrics</h5>
+      </div>
+
+      <div class="card-body">
+        <!-- Responsive grid: 2 cols (xs), 3 cols (sm), 6 cols (lg) -->
+        <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-6 g-3 text-center">
+
+          <div class="col">
+            <div class="metric-badge h-100">
+              <div class="metric-label">Avg Transaction</div>
+              <div class="metric-value" id="metric-avg-transaction"
+                   aria-label="Average Transaction">
+                <?= $data['performance_metrics']['avg_transaction_size'] ?? '$0' ?>
+              </div>
             </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-md-2">
-                        <div class="metric-badge">
-                            Avg Transaction<br>
-                            <strong id="metric-avg-transaction"><?= $data['performance_metrics']['avg_transaction_size'] ?? '$0' ?></strong>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="metric-badge" style="background: linear-gradient(45deg, #007bff, #6610f2);">
-                            Best Day<br>
-                            <strong id="metric-best-day"><?= $data['performance_metrics']['best_day'] ?? '$0' ?></strong>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="metric-badge" style="background: linear-gradient(45deg, #fd7e14, #e83e8c);">
-                            Consistency<br>
-                            <strong id="metric-consistency"><?= $data['performance_metrics']['consistency_score'] ?? 0 ?>%</strong>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="metric-badge" style="background: linear-gradient(45deg, #20c997, #17a2b8);">
-                            Avg AG1 Rate<br>
-                            <strong id="metric-ag1-rate"><?= $data['performance_metrics']['avg_ag1_rate'] ?? 0 ?>%</strong>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="metric-badge" style="background: linear-gradient(45deg, #6f42c1, #e83e8c);">
-                            Avg AG2 Rate<br>
-                            <strong id="metric-ag2-rate"><?= $data['performance_metrics']['avg_ag2_rate'] ?? 0 ?>%</strong>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="metric-badge" style="background: linear-gradient(45deg, #dc3545, #fd7e14);">
-                            Total Transactions<br>
-                            <strong id="metric-total-transactions"><?= $data['performance_metrics']['total_transactions'] ?? 0 ?></strong>
-                        </div>
-                    </div>
-                </div>
+          </div>
+
+          <div class="col">
+            <div class="metric-badge metric--blue h-100">
+              <div class="metric-label">Best Day</div>
+              <div class="metric-value" id="metric-best-day"
+                   aria-label="Best Day">
+                <?= $data['performance_metrics']['best_day'] ?? '$0' ?>
+              </div>
             </div>
-        </div>
+          </div>
+
+          <div class="col">
+            <div class="metric-badge metric--orange h-100">
+              <div class="metric-label">Consistency</div>
+              <div class="metric-value" id="metric-consistency"
+                   aria-label="Consistency Score">
+                <?= $data['performance_metrics']['consistency_score'] ?? 0 ?>%
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="metric-badge metric--teal h-100">
+              <div class="metric-label">Avg AG1 Rate</div>
+              <div class="metric-value" id="metric-ag1-rate"
+                   aria-label="Average AG1 Rate">
+                <?= $data['performance_metrics']['avg_ag1_rate'] ?? 0 ?>%
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="metric-badge metric--purple h-100">
+              <div class="metric-label">Avg AG2 Rate</div>
+              <div class="metric-value" id="metric-ag2-rate"
+                   aria-label="Average AG2 Rate">
+                <?= $data['performance_metrics']['avg_ag2_rate'] ?? 0 ?>%
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="metric-badge metric--red h-100">
+              <div class="metric-label">Total Trx</div>
+              <div class="metric-value" id="metric-total-transactions"
+                   aria-label="Total Transactions">
+                <?= $data['performance_metrics']['total_transactions'] ?? 0 ?>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /row -->
+      </div><!-- /card-body -->
     </div>
+  </div>
 </div>
 
 <!-- Charts Section -->
