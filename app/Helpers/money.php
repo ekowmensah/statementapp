@@ -9,7 +9,7 @@ class Money
     /**
      * Format money value to 2 decimal places
      */
-    public static function format($amount, $currency = '$', $decimals = 2)
+    public static function format($amount, $currency = 'GH₵', $decimals = 2)
     {
         if ($amount === null || $amount === '') {
             return $currency . '0.00';
@@ -225,7 +225,7 @@ class Money
     /**
      * Format for display in tables (with currency, proper formatting)
      */
-    public static function formatForDisplay($amount, $currency = '$')
+    public static function formatForDisplay($amount, $currency = 'GH₵')
     {
         return self::format($amount, $currency);
     }

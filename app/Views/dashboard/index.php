@@ -22,7 +22,7 @@ function appUrl($path) {
     transform: translateY(-5px);
 }
 .kpi-value {
-    font-size: 2.5rem;
+    font-size: 1.3rem;
     font-weight: bold;
     margin: 0;
 }

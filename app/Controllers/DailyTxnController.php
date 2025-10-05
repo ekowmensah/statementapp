@@ -262,7 +262,7 @@ class DailyTxnController
         $data = [
             'title' => 'Create Daily Transaction - Daily Statement App',
             'transaction' => [
-                'txn_date' => $_GET['date'] ?? date('Y-m-d'),
+                'txn_date' => $_GET['date'] ?? '', // Don't auto-fill current date
                 'ca' => '0.00',
                 'ga' => '0.00',
                 'je' => '0.00',

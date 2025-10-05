@@ -39,13 +39,11 @@ return [
     // Month Locks
     'GET /locks' => 'MonthLockController@index',
     'POST /locks/lock' => 'MonthLockController@lock',
-    'POST /locks/unlock' => 'MonthLockController@unlock',
-
     // Export functionality
     'GET /export/csv' => 'ExportController@csv',
     'GET /export/pdf' => 'ExportController@pdf',
 
-    // User Management
+    // User management routes
     'GET /users' => 'UserController@index',
     'GET /users/create' => 'UserController@create',
     'POST /users/store' => 'UserController@store',
@@ -55,6 +53,16 @@ return [
     'POST /users/toggle-active' => 'UserController@toggleActive',
     'GET /users/profile' => 'UserController@profile',
     'POST /users/update-profile' => 'UserController@updateProfile',
+
+    // Role management routes
+    'GET /roles' => 'RoleController@index',
+    'GET /roles/create' => 'RoleController@create',
+    'POST /roles/store' => 'RoleController@store',
+    'GET /roles/edit' => 'RoleController@edit',
+    'POST /roles/update' => 'RoleController@update',
+    'POST /roles/delete' => 'RoleController@delete',
+    'GET /roles/edit-permissions' => 'RoleController@editPermissions',
+    'POST /roles/update-permissions' => 'RoleController@updatePermissions',
 
     // API endpoints
     'POST /api/preview' => 'DailyTxnController@preview',

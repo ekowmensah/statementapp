@@ -70,7 +70,7 @@ $isEdit = $data['is_edit'];
                             <div class="mb-3">
                                 <label for="ca" class="form-label">CA Amount <span class="text-danger">*</span></label>
                                 <div class="input-group">
-                                    <span class="input-group-text">$</span>
+                                    <span class="input-group-text">GH₵</span>
                                     <input type="number" class="form-control money-input" id="ca" name="ca" 
                                            value="<?= Money::formatForInput($oldInput['ca'] ?? $transaction['ca']) ?>" 
                                            step="0.01" min="0" required>
@@ -110,7 +110,7 @@ $isEdit = $data['is_edit'];
                             <div class="mb-3">
                                 <label for="ga" class="form-label">GA Amount <span class="text-danger">*</span></label>
                                 <div class="input-group">
-                                    <span class="input-group-text">$</span>
+                                    <span class="input-group-text">GH₵</span>
                                     <input type="number" class="form-control money-input" id="ga" name="ga" 
                                            value="<?= Money::formatForInput($oldInput['ga'] ?? $transaction['ga']) ?>" 
                                            step="0.01" min="0" required>
@@ -122,7 +122,7 @@ $isEdit = $data['is_edit'];
                             <div class="mb-3">
                                 <label for="je" class="form-label">JE Amount <span class="text-danger">*</span></label>
                                 <div class="input-group">
-                                    <span class="input-group-text">$</span>
+                                    <span class="input-group-text">GH₵</span>
                                     <input type="number" class="form-control money-input" id="je" name="je" 
                                            value="<?= Money::formatForInput($oldInput['je'] ?? ($transaction['je'] ?? 0)) ?>" 
                                            step="0.01" min="0" required>
@@ -237,10 +237,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Simple money formatting function
                 const formatMoney = (amount) => {
-                    return new Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: 'USD'
-                    }).format(amount || 0);
+                    return 'GH₵' + parseFloat(amount || 0).toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
                 };
                 
                 previewContent.innerHTML = `

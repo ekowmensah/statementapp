@@ -46,7 +46,7 @@
 
         // Money formatting utilities
         window.MoneyUtils = {
-            format: function(amount, currency = '$') {
+            format: function(amount, currency = 'GH₵') {
                 if (amount === null || amount === undefined || amount === '') {
                     return currency + '0.00';
                 }
@@ -404,10 +404,10 @@
                     changesList.push(`Roles updated`);
                 }
                 
-                const message = `Your account has been updated:\n${changesList.join('\n')}`;
-                const notification = createNotification('info', message, 'Account Updated');
-                document.body.appendChild(notification);
-            }
+            //     const message = `Your account has been updated:\n${changesList.join('\n')}`;
+            //     const notification = createNotification('info', message, 'Account Updated');
+            //     document.body.appendChild(notification);
+            // }
             
             function updateUserInterface(user) {
                 // Update header user info

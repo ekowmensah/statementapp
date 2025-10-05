@@ -4,6 +4,8 @@
  * Handles role data operations
  */
 
+require_once __DIR__ . '/../../config/db.php';
+
 class Role
 {
     private $db;
@@ -42,10 +44,13 @@ class Role
      */
     public function create($data)
     {
-        return $this->db->insert(
-            "INSERT INTO roles (name) VALUES (?)",
-            [$data['name']]
-        );
+        $sql = "INSERT INTO roles (name" . (isset($data['description']) ? ", description" : "") . ") VALUES (?" . (isset($data['description']) ? ", ?" : "") . ")";
+        $params = [$data['name']];
+        if (isset($data['description'])) {
+            $params[] = $data['description'];
+        }
+        
+        return $this->db->insert($sql, $params);
     }
 
     /**
@@ -53,10 +58,14 @@ class Role
      */
     public function update($id, $data)
     {
-        return $this->db->update(
-            "UPDATE roles SET name = ? WHERE id = ?",
-            [$data['name'], $id]
-        );
+        $sql = "UPDATE roles SET name = ?" . (isset($data['description']) ? ", description = ?" : "") . " WHERE id = ?";
+        $params = [$data['name']];
+        if (isset($data['description'])) {
+            $params[] = $data['description'];
+        }
+        $params[] = $id;
+        
+        return $this->db->update($sql, $params);
     }
 
     /**

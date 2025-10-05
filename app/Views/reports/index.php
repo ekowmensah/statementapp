@@ -640,7 +640,7 @@ function updateChart(reportData) {
                             beginAtZero: true,
                             ticks: {
                                 callback: function(value) {
-                                    return '$' + value.toLocaleString();
+                                    return 'GH₵' + value.toLocaleString();
                                 }
                             }
                         }
