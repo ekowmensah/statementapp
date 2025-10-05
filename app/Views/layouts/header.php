@@ -365,6 +365,10 @@
                                     <?= htmlspecialchars(Auth::user()['email'] ?? '') ?>
                                 </div>
                             </div>
+                            <a class="dropdown-item" href="<?= Response::url('users/profile') ?>">
+                                <i class="bi bi-person-gear me-2"></i>
+                                My Profile
+                            </a>
                             <div class="dropdown-divider"></div>
                             <form method="POST" action="<?= Response::url('logout') ?>" class="d-inline" id="logoutForm">
                                 <?= CSRF::field() ?>

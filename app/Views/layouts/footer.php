@@ -339,5 +339,161 @@
         });
     </script>
 
+    <!-- Real-time User Session Monitoring -->
+    <script>
+        (function() {
+            let sessionCheckInterval;
+            let lastCheckTime = Date.now();
+            
+            // Check for user session updates every 30 seconds
+            function startSessionMonitoring() {
+                sessionCheckInterval = setInterval(checkUserUpdates, 30000);
+            }
+            
+            function checkUserUpdates() {
+                fetch('<?= Response::url('api/user/check-updates') ?>', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.account_disabled) {
+                            // Account was disabled - force logout
+                            showAccountDisabledNotification(data.message);
+                            setTimeout(() => {
+                                window.location.href = '<?= Response::url('logout') ?>';
+                            }, 3000);
+                            return;
+                        }
+                        
+                        if (data.has_changes) {
+                            // Account was updated - show notification and refresh UI
+                            showAccountUpdatedNotification(data.changes, data.user);
+                            updateUserInterface(data.user);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Session check error:', error);
+                });
+            }
+            
+            function showAccountDisabledNotification(message) {
+                const notification = createNotification('danger', message, 'Account Disabled');
+                document.body.appendChild(notification);
+                
+                // Clear the interval since user will be logged out
+                if (sessionCheckInterval) {
+                    clearInterval(sessionCheckInterval);
+                }
+            }
+            
+            function showAccountUpdatedNotification(changes, user) {
+                let changesList = [];
+                
+                if (changes.name) {
+                    changesList.push(`Name: ${changes.name.old} → ${changes.name.new}`);
+                }
+                if (changes.email) {
+                    changesList.push(`Email: ${changes.email.old} → ${changes.email.new}`);
+                }
+                if (changes.roles) {
+                    changesList.push(`Roles updated`);
+                }
+                
+                const message = `Your account has been updated:\n${changesList.join('\n')}`;
+                const notification = createNotification('info', message, 'Account Updated');
+                document.body.appendChild(notification);
+            }
+            
+            function updateUserInterface(user) {
+                // Update header user info
+                const userNameElements = document.querySelectorAll('.fw-semibold');
+                userNameElements.forEach(element => {
+                    if (element.textContent.trim() !== user.name) {
+                        element.textContent = user.name;
+                    }
+                });
+                
+                const userEmailElements = document.querySelectorAll('.text-medium-emphasis.small');
+                userEmailElements.forEach(element => {
+                    if (element.textContent.trim() !== user.email) {
+                        element.textContent = user.email;
+                    }
+                });
+                
+                // If we're on the profile page, update the profile info
+                if (window.location.pathname.includes('/users/profile')) {
+                    const profileNameElements = document.querySelectorAll('h5.mb-1');
+                    profileNameElements.forEach(element => {
+                        if (element.textContent.trim() !== user.name) {
+                            element.textContent = user.name;
+                        }
+                    });
+                    
+                    const profileEmailElements = document.querySelectorAll('p.text-muted.mb-2');
+                    profileEmailElements.forEach(element => {
+                        if (element.textContent.trim() !== user.email) {
+                            element.textContent = user.email;
+                        }
+                    });
+                }
+            }
+            
+            function createNotification(type, message, title) {
+                const notification = document.createElement('div');
+                notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+                notification.style.cssText = `
+                    top: 20px;
+                    right: 20px;
+                    z-index: 9999;
+                    min-width: 300px;
+                    max-width: 500px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                `;
+                
+                const icon = type === 'danger' ? 'exclamation-triangle' : 'info-circle';
+                
+                notification.innerHTML = `
+                    <div class="d-flex align-items-start">
+                        <i class="bi bi-${icon} me-2 mt-1"></i>
+                        <div class="flex-grow-1">
+                            <strong>${title}</strong><br>
+                            <small>${message.replace(/\n/g, '<br>')}</small>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+                
+                // Auto-remove after 10 seconds
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 10000);
+                
+                return notification;
+            }
+            
+            // Start monitoring when page loads
+            document.addEventListener('DOMContentLoaded', function() {
+                // Only start monitoring if user is logged in
+                if (document.querySelector('.dropdown-menu')) {
+                    startSessionMonitoring();
+                }
+            });
+            
+            // Stop monitoring when page unloads
+            window.addEventListener('beforeunload', function() {
+                if (sessionCheckInterval) {
+                    clearInterval(sessionCheckInterval);
+                }
+            });
+        })();
+    </script>
+
 </body>
 </html>

@@ -45,11 +45,23 @@ return [
     'GET /export/csv' => 'ExportController@csv',
     'GET /export/pdf' => 'ExportController@pdf',
 
+    // User Management
+    'GET /users' => 'UserController@index',
+    'GET /users/create' => 'UserController@create',
+    'POST /users/store' => 'UserController@store',
+    'GET /users/edit' => 'UserController@edit',
+    'POST /users/update' => 'UserController@update',
+    'POST /users/delete' => 'UserController@delete',
+    'POST /users/toggle-active' => 'UserController@toggleActive',
+    'GET /users/profile' => 'UserController@profile',
+    'POST /users/update-profile' => 'UserController@updateProfile',
+
     // API endpoints
     'POST /api/preview' => 'DailyTxnController@preview',
     'GET /api/rates/effective' => 'RatesController@getEffectiveRate',
     'GET /api/dashboard/kpis' => 'DashboardController@getKpis',
     'GET /api/dashboard/chart' => 'DashboardController@getChartData',
+    'GET /api/user/check-updates' => 'UserController@checkUpdates',
 
     // Error pages
     'GET /403' => 'ErrorController@forbidden',

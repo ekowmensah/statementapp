@@ -238,4 +238,23 @@ class Auth
     {
         return bin2hex(random_bytes($length));
     }
+
+    /**
+     * Refresh user data in session
+     */
+    public static function refreshUser($userData)
+    {
+        if (!self::check()) {
+            return false;
+        }
+
+        // Update session with fresh user data
+        $_SESSION['user_data'] = $userData;
+        
+        // Clear cached user data to force refresh
+        self::$user = null;
+        self::$roles = null;
+
+        return true;
+    }
 }

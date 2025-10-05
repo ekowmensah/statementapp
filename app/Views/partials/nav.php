@@ -80,12 +80,14 @@ function isActive($path, $currentPath) {
     
     <li class="nav-title">Administration</li>
     
+    <?php if (Auth::can('view_users')): ?>
     <li class="nav-item">
-        <a class="nav-link" href="#" onclick="alert('User management coming soon!')">
+        <a class="nav-link <?= isActive('/users', $currentPath) ?>" href="<?= Response::url('users') ?>">
             <i class="nav-icon bi bi-people"></i>
             User Management
         </a>
     </li>
+    <?php endif; ?>
     
     <li class="nav-item">
         <a class="nav-link" href="#" onclick="alert('System settings coming soon!')">
