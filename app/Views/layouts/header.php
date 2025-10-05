@@ -34,6 +34,30 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <!-- Google Translate -->
+    <script type="text/javascript">
+        function googleTranslateElementInit() {
+            // Desktop version
+            new google.translate.TranslateElement({
+                pageLanguage: 'en',
+                includedLanguages: 'en,es,fr,de,it,pt,zh,ja,ko,ar,hi,ru,sw,yo,ig,ha,tw,zu,af,am,ny,sn,so,st,tn,ts,ve,xh',
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+                autoDisplay: false,
+                multilanguagePage: true
+            }, 'google_translate_element');
+            
+            // Mobile version
+            new google.translate.TranslateElement({
+                pageLanguage: 'en',
+                includedLanguages: 'en,es,fr,de,it,pt,zh,ja,ko,ar,hi,ru,sw,yo,ig,ha,tw,zu,af,am,ny,sn,so,st,tn,ts,ve,xh',
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+                autoDisplay: false,
+                multilanguagePage: true
+            }, 'google_translate_element_mobile');
+        }
+    </script>
+    <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+    
     <!-- Custom CSS -->
     <style>
         .sidebar {
@@ -302,6 +326,93 @@
             width: 1rem;
             height: 1rem;
         }
+        
+        /* Google Translate Styling */
+        #google_translate_element {
+            display: inline-block;
+        }
+        
+        .goog-te-gadget {
+            font-family: inherit !important;
+            font-size: 0.875rem !important;
+        }
+        
+        .goog-te-gadget-simple {
+            background-color: transparent !important;
+            border: 1px solid #dee2e6 !important;
+            border-radius: 0.375rem !important;
+            padding: 0.375rem 0.75rem !important;
+            font-size: 0.875rem !important;
+            color: #495057 !important;
+            cursor: pointer !important;
+            transition: all 0.15s ease-in-out !important;
+        }
+        
+        .goog-te-gadget-simple:hover {
+            border-color: #0d6efd !important;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+        }
+        
+        .goog-te-gadget-simple .goog-te-menu-value {
+            color: #495057 !important;
+        }
+        
+        .goog-te-gadget-simple .goog-te-menu-value span {
+            color: #495057 !important;
+        }
+        
+        .goog-te-gadget-icon {
+            background-image: none !important;
+            margin-right: 0.5rem !important;
+        }
+        
+        .goog-te-gadget-icon::before {
+            content: "🌐";
+            font-size: 1rem;
+        }
+        
+        /* Hide Google Translate banner */
+        .goog-te-banner-frame {
+            display: none !important;
+        }
+        
+        body {
+            top: 0 !important;
+        }
+        
+        /* Mobile Google Translate */
+        @media (max-width: 768px) {
+            #google_translate_element {
+                margin-top: 0.5rem;
+            }
+            
+            #google_translate_element_mobile .goog-te-gadget-simple {
+                font-size: 0.75rem !important;
+                padding: 0.25rem 0.5rem !important;
+                min-width: auto !important;
+            }
+            
+            #google_translate_element_mobile .goog-te-gadget-icon::before {
+                font-size: 0.875rem;
+            }
+        }
+        
+        /* Language selector styling */
+        .language-selector {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .language-selector .nav-link {
+            padding: 0.5rem !important;
+            border-radius: 0.375rem;
+            transition: background-color 0.15s ease-in-out;
+        }
+        
+        .language-selector .nav-link:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
     </style>
 </head>
 
@@ -329,8 +440,9 @@
                     <i class="bi bi-list"></i>
                 </button>
                 
-                <!-- Mobile Add Transaction Button -->
-                <div class="d-md-none">
+                <!-- Mobile Add Transaction Button and Language Selector -->
+                <div class="d-md-none d-flex align-items-center gap-2">
+                    <div id="google_translate_element_mobile"></div>
                     <a href="<?= Response::url('daily/create') ?>" class="btn btn-primary btn-sm btn-add-transaction">
                         <i class="bi bi-plus-circle"></i>
                     </a>
@@ -346,6 +458,11 @@
                 </div>
                 
                 <div class="header-nav ms-auto">
+                    <!-- Google Translate Widget -->
+                    <div class="nav-item language-selector me-3 d-none d-md-flex">
+                        <div id="google_translate_element"></div>
+                    </div>
+                    
                     <div class="nav-item">
                         <a href="<?= Response::url('daily/create') ?>" class="btn btn-primary btn-sm me-3 btn-add-transaction">
                             <i class="bi bi-plus-circle me-1"></i>
