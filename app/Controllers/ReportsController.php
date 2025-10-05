@@ -953,6 +953,44 @@ class ReportsController
             $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate);
             $data = $this->db->fetchAll($sql, [$startDate, $endDate]);
             
+            // Debug logging for GA analysis
+            error_log("GA Analysis: Retrieved " . count($data) . " rows for date range $startDate to $endDate");
+            
+            // Check if we have data
+            if (empty($data)) {
+                return [
+                    'type' => 'ga_analysis',
+                    'title' => 'General & Administrative (GA) Analysis',
+                    'period' => $this->formatPeriod($startDate, $endDate),
+                    'chart' => [
+                        'type' => 'line',
+                        'data' => [
+                            'labels' => [],
+                            'datasets' => [[
+                                'label' => 'GA',
+                                'data' => [],
+                                'borderColor' => '#dc3545',
+                                'backgroundColor' => 'rgba(220, 53, 69, 0.1)',
+                                'borderWidth' => 2,
+                                'fill' => false,
+                                'tension' => 0.4
+                            ]]
+                        ],
+                        'options' => [
+                            'responsive' => true,
+                            'maintainAspectRatio' => false,
+                            'scales' => ['y' => ['beginAtZero' => true]]
+                        ]
+                    ],
+                    'summary' => ['ga' => ['total' => 0, 'average' => 0, 'max' => 0, 'min' => 0, 'count' => 0]],
+                    'insights' => [[
+                        'type' => 'info',
+                        'title' => 'No Data Available',
+                        'message' => 'No GA data found for the selected date range. Please try a different date range.'
+                    ]]
+                ];
+            }
+            
             $chartData = $this->processChartData($data, ['ga'], $groupBy);
             $summary = $this->calculateSummaryStats($data, ['ga']);
             
@@ -1172,6 +1210,18 @@ class ReportsController
     private function calculateCostControlMetrics($data, $metric)
     {
         $values = array_column($data, 'total_' . $metric);
+        
+        // Check if values array is empty to prevent max() error
+        if (empty($values)) {
+            return [
+                'budget' => 0,
+                'avg_spend' => 0,
+                'budget_utilization' => 0,
+                'variance' => 0,
+                'control_score' => 0
+            ];
+        }
+        
         $budget = max($values) * 1.1; // Assume budget is 110% of max
         
         $avgSpend = count($values) > 0 ? array_sum($values) / count($values) : 0;
