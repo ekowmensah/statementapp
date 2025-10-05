@@ -183,113 +183,17 @@
             });
         });
 
-        // PWA Install Prompt
-        let deferredPrompt;
-        let installButton;
-
-        // Create install button
-        function createInstallButton() {
-            if (installButton) return;
-            
-            installButton = document.createElement('div');
-            installButton.id = 'pwa-install-prompt';
-            installButton.innerHTML = `
-                <div class="alert alert-info alert-dismissible fade show position-fixed" 
-                     style="bottom: 20px; right: 20px; z-index: 9999; max-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-download me-2"></i>
-                        <div class="flex-grow-1">
-                            <strong>Install App</strong><br>
-                            <small>Add Daily Statement to your home screen for quick access!</small>
-                        </div>
-                    </div>
-                    <div class="mt-2">
-                        <button class="btn btn-primary btn-sm me-2" id="install-pwa-btn">
-                            <i class="bi bi-plus-circle me-1"></i>Install
-                        </button>
-                        <button class="btn btn-outline-secondary btn-sm" id="dismiss-pwa-btn">
-                            Later
-                        </button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(installButton);
-
-            // Install button click
-            document.getElementById('install-pwa-btn').addEventListener('click', async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    console.log('PWA install outcome:', outcome);
-                    deferredPrompt = null;
-                }
-                hideInstallPrompt();
-            });
-
-            // Dismiss button click
-            document.getElementById('dismiss-pwa-btn').addEventListener('click', () => {
-                hideInstallPrompt();
-                localStorage.setItem('pwa-install-dismissed', Date.now());
-            });
-        }
-
-        function hideInstallPrompt() {
-            if (installButton) {
-                installButton.remove();
-                installButton = null;
-            }
-        }
-
-        function shouldShowInstallPrompt() {
-            // Don't show if already dismissed recently (7 days)
-            const dismissed = localStorage.getItem('pwa-install-dismissed');
-            if (dismissed && (Date.now() - parseInt(dismissed)) < 7 * 24 * 60 * 60 * 1000) {
-                return false;
-            }
-
-            // Don't show if already installed
-            if (window.matchMedia('(display-mode: standalone)').matches) {
-                return false;
-            }
-
-            // Don't show on desktop (optional)
-            if (window.innerWidth > 768) {
-                return false;
-            }
-
-            return true;
-        }
-
-        // Listen for beforeinstallprompt event
-        window.addEventListener('beforeinstallprompt', (e) => {
-            console.log('PWA install prompt available');
-            e.preventDefault();
-            deferredPrompt = e;
-
-            if (shouldShowInstallPrompt()) {
-                setTimeout(createInstallButton, 3000); // Show after 3 seconds
-            }
-        });
-
-        // Listen for app installed event
-        window.addEventListener('appinstalled', () => {
-            console.log('PWA was installed');
-            hideInstallPrompt();
-            deferredPrompt = null;
-        });
-
-        // Service Worker Registration
+        // Unregister any existing service workers (cleanup)
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('<?= Response::url('sw.js') ?>')
-                    .then((registration) => {
-                        console.log('SW registered: ', registration);
-                    })
-                    .catch((registrationError) => {
-                        console.log('SW registration failed: ', registrationError);
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister().then(function(boolean) {
+                        console.log('Service Worker unregistered:', boolean);
                     });
+                }
             });
         }
+
     </script>
 
     <!-- Page-specific scripts -->

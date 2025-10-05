@@ -18,16 +18,8 @@
     <link rel="icon" type="image/png" sizes="512x512" href="<?= Response::url('icon-512.png') ?>">
     <link rel="apple-touch-icon" href="<?= Response::url('icon-192.png') ?>">
     
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="<?= Response::url('manifest.json') ?>">
-    
-    <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#667eea">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Daily Statement">
     <meta name="msapplication-TileColor" content="#667eea">
-    <meta name="msapplication-config" content="<?= Response::url('browserconfig.xml') ?>">
     
     <!-- CSRF Token -->
     <?= CSRF::meta() ?>
