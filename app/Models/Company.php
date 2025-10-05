@@ -247,9 +247,8 @@ class Company
         
         $validator
             ->required('name', 'Company name is required')
-            ->minLength('name', 2, 'Company name must be at least 2 characters')
-            ->maxLength('name', 100, 'Company name cannot exceed 100 characters')
-            ->maxLength('description', 255, 'Description cannot exceed 255 characters');
+            ->length('name', 2, 100, 'Company name must be between 2 and 100 characters')
+            ->length('description', null, 255, 'Description cannot exceed 255 characters');
 
         // Check unique name
         if (isset($data['name'])) {
