@@ -830,19 +830,27 @@ class DashboardController
     {
         $db = Database::getInstance();
         
+        // Query directly from daily_txn table to avoid issues with view joins
         $result = $db->fetch(
             "SELECT 
                 MIN(YEAR(txn_date)) as min_year,
                 MAX(YEAR(txn_date)) as max_year
-             FROM v_daily_txn"
+             FROM daily_txn 
+             WHERE txn_date IS NOT NULL"
         );
         
-        $minYear = $result['min_year'] ?? date('Y');
-        $maxYear = $result['max_year'] ?? date('Y');
-        
-        // Ensure we have at least current year
-        $minYear = min($minYear, date('Y'));
-        $maxYear = max($maxYear, date('Y'));
+        // If no data exists, provide a reasonable range
+        if (empty($result['min_year']) || empty($result['max_year'])) {
+            $minYear = date('Y') - 2; // 2 years back
+            $maxYear = date('Y') + 1; // 1 year forward
+        } else {
+            $minYear = $result['min_year'];
+            $maxYear = $result['max_year'];
+            
+            // Extend range to include at least current year
+            $minYear = min($minYear, date('Y'));
+            $maxYear = max($maxYear, date('Y'));
+        }
         
         return [
             'min' => (int)$minYear,

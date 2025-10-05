@@ -196,11 +196,24 @@ function appUrl($path) {
                         </select>
                     </div>
                     
+                    <!-- Company Filter -->
+                    <div class="col-md-2">
+                        <label for="company_id" class="form-label">Company</label>
+                        <select class="form-select" id="company_id" name="company_id">
+                            <option value="">All Companies</option>
+                            <?php foreach ($data['companies'] ?? [] as $company): ?>
+                                <option value="<?= $company['id'] ?>" <?= $data['company_id'] == $company['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($company['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    
                     <!-- Search -->
                     <div class="col-md-3">
                         <label for="search" class="form-label">Search</label>
                         <input type="text" class="form-control" id="search" name="search" 
-                               placeholder="Search by date or note..." value="<?= htmlspecialchars($data['search']) ?>">
+                               placeholder="Search by date, note, or company..." value="<?= htmlspecialchars($data['search']) ?>">
                     </div>
                     
                     <!-- Per Page -->
@@ -269,6 +282,7 @@ function appUrl($path) {
                                 <th class="text-end">RE</th>
                                 <th class="text-end">JE</th>
                                 <th class="text-end">FI</th>
+                                <th>Company</th>
                                 <th>Note</th>
                                 <th width="120">Actions</th>
                             </tr>
@@ -292,6 +306,13 @@ function appUrl($path) {
                                 <td class="text-end table-money"><?= Money::format($txn['re']) ?></td>
                                 <td class="text-end table-money"><?= Money::format($txn['je']) ?></td>
                                 <td class="text-end table-money fw-bold text-success"><?= Money::format($txn['fi']) ?></td>
+                                <td>
+                                    <?php if ($txn['company_name']): ?>
+                                        <span class="badge bg-primary"><?= htmlspecialchars($txn['company_name']) ?></span>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="text-muted">
                                     <?= htmlspecialchars(substr($txn['note'] ?? '', 0, 30)) ?>
                                     <?= strlen($txn['note'] ?? '') > 30 ? '...' : '' ?>
@@ -330,6 +351,7 @@ function appUrl($path) {
                                 <td class="text-end table-money"><?= Money::format($data['totals']['total_re'] ?? 0) ?></td>
                                 <td class="text-end table-money"><?= Money::format($data['totals']['total_je'] ?? 0) ?></td>
                                 <td class="text-end table-money text-success"><?= Money::format($data['totals']['total_fi'] ?? 0) ?></td>
+                                <td></td>
                                 <td class="text-muted"><?= $data['totals']['days_count'] ?> records</td>
                                 <td></td>
                             </tr>
@@ -499,6 +521,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Auto-submit when per_page changes
     document.getElementById('per_page').addEventListener('change', function() {
+        this.form.submit();
+    });
+    
+    // Auto-submit when company filter changes
+    document.getElementById('company_id').addEventListener('change', function() {
         this.form.submit();
     });
 });

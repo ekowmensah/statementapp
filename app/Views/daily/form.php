@@ -45,7 +45,7 @@ $isEdit = $data['is_edit'];
                     <?php endif; ?>
                     
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="mb-3">
                                 <label for="txn_date" class="form-label">Transaction Date <span class="text-danger">*</span></label>
                                 <input type="date" class="form-control" id="txn_date" name="txn_date" 
@@ -54,12 +54,28 @@ $isEdit = $data['is_edit'];
                                 <div class="form-text">Select the date for this transaction</div>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="company_id" class="form-label">Company <span class="text-danger">*</span></label>
+                                <select class="form-select" id="company_id" name="company_id" required>
+                                    <option value="">Select Company</option>
+                                    <?php foreach ($data['companies'] ?? [] as $company): ?>
+                                        <option value="<?= $company['id'] ?>" 
+                                                <?= ($oldInput['company_id'] ?? $transaction['company_id'] ?? '') == $company['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($company['name']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="form-text">Select the company for this transaction</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
                             <div class="mb-3">
                                 <label for="note" class="form-label">Note</label>
                                 <input type="text" class="form-control" id="note" name="note" 
                                        value="<?= htmlspecialchars($oldInput['note'] ?? $transaction['note'] ?? '') ?>"
                                        placeholder="Optional note or description">
+                                <div class="form-text">Additional details or remarks</div>
                             </div>
                         </div>
                     </div>
@@ -360,6 +376,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const je = parseFloat(document.getElementById('je').value) || 0;
         const ag1Rate = parseFloat(document.getElementById('rate_ag1').value) || 0;
         const ag2Rate = parseFloat(document.getElementById('rate_ag2').value) || 0;
+        const companyId = document.getElementById('company_id').value;
+        
+        if (!companyId) {
+            e.preventDefault();
+            alert('Please select a company for this transaction.');
+            document.getElementById('company_id').focus();
+            return false;
+        }
         
         if (ca < 0 || ga < 0 || je < 0) {
             e.preventDefault();

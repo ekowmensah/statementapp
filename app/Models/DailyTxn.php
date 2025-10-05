@@ -94,13 +94,14 @@ class DailyTxn
     public function create($data)
     {
         return $this->db->insert(
-            "INSERT INTO daily_txn (txn_date, ca, ga, je, note, created_by) 
-             VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO daily_txn (txn_date, ca, ga, je, company_id, note, created_by) 
+             VALUES (?, ?, ?, ?, ?, ?, ?)",
             [
                 $data['txn_date'],
                 $data['ca'],
                 $data['ga'],
                 $data['je'],
+                $data['company_id'], // Now required, no null fallback
                 $data['note'] ?? null,
                 $data['created_by']
             ]
@@ -133,6 +134,11 @@ class DailyTxn
         if (isset($data['je'])) {
             $fields[] = 'je = ?';
             $params[] = $data['je'];
+        }
+        
+        if (isset($data['company_id'])) {
+            $fields[] = 'company_id = ?';
+            $params[] = $data['company_id'];
         }
         
         if (isset($data['note'])) {
@@ -300,6 +306,8 @@ class DailyTxn
             ->numeric('je', 'JE amount must be a number')
             ->min('je', 0, 'JE amount must be at least 0')
             ->decimal('je', 2, 'JE amount cannot have more than 2 decimal places')
+            ->required('company_id', 'Company is required')
+            ->numeric('company_id', 'Please select a valid company')
             ->required('rate_ag1', 'AG1 rate is required')
             ->numeric('rate_ag1', 'AG1 rate must be a number')
             ->min('rate_ag1', 0, 'AG1 rate must be at least 0')
@@ -335,10 +343,10 @@ class DailyTxn
     {
         return $this->db->fetchAll(
             "SELECT * FROM v_daily_txn 
-             WHERE note LIKE ? OR txn_date LIKE ? 
+             WHERE company_name LIKE ? OR note LIKE ? OR txn_date LIKE ? 
              ORDER BY txn_date DESC 
              LIMIT ?",
-            ["%{$query}%", "%{$query}%", $limit]
+            ["%{$query}%", "%{$query}%", "%{$query}%", $limit]
         );
     }
 
@@ -412,5 +420,32 @@ class DailyTxn
         );
         
         return $result['count'] > 0;
+    }
+
+    /**
+     * Get transactions by company
+     */
+    public function getByCompany($companyId, $limit = null, $offset = 0)
+    {
+        $sql = "SELECT * FROM v_daily_txn WHERE company_id = ? ORDER BY txn_date DESC";
+        
+        if ($limit) {
+            $sql .= " LIMIT ? OFFSET ?";
+            return $this->db->fetchAll($sql, [$companyId, $limit, $offset]);
+        }
+        
+        return $this->db->fetchAll($sql, [$companyId]);
+    }
+
+    /**
+     * Get transactions count by company
+     */
+    public function getCountByCompany($companyId)
+    {
+        $result = $this->db->fetch(
+            "SELECT COUNT(*) as count FROM daily_txn WHERE company_id = ?",
+            [$companyId]
+        );
+        return $result['count'];
     }
 }

@@ -138,6 +138,9 @@ function appUrl($path) {
                 <p class="text-muted mb-0 fs-5">Comprehensive financial reporting system</p>
             </div>
             <div class="d-flex gap-2">
+                <a href="<?= appUrl('reports/consolidated') ?>" class="btn btn-primary">
+                    <i class="bi bi-pie-chart me-2"></i>Consolidated Reports
+                </a>
                 <button class="btn btn-outline-primary" onclick="refreshReports()">
                     <i class="bi bi-arrow-clockwise me-2"></i>Refresh
                 </button>

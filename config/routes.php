@@ -23,6 +23,15 @@ return [
     'GET /daily/show' => 'DailyTxnController@show',
     'POST /daily/delete' => 'DailyTxnController@delete',
 
+    // Companies
+    'GET /companies' => 'CompanyController@index',
+    'GET /companies/create' => 'CompanyController@create',
+    'POST /companies/create' => 'CompanyController@store',
+    'GET /companies/edit' => 'CompanyController@edit',
+    'POST /companies/edit' => 'CompanyController@update',
+    'GET /companies/show' => 'CompanyController@show',
+    'POST /companies/delete' => 'CompanyController@delete',
+    'POST /companies/toggle-active' => 'CompanyController@toggleActive',
 
     // Statement Views
     'GET /statement' => 'StatementController@index',
@@ -32,6 +41,8 @@ return [
 
     // Reports
     'GET /reports' => 'ReportsController@index',
+    'GET /reports/consolidated' => 'ReportsController@consolidated',
+    'GET /reports/export-consolidated' => 'ReportsController@exportConsolidated',
     'GET /reports/data' => 'ReportsController@getData',
     'GET /reports/test' => 'ReportsController@test',
     'GET /reports/api-test' => 'ReportsController@apiTest',
@@ -70,6 +81,9 @@ return [
     'GET /api/dashboard/kpis' => 'DashboardController@getKpis',
     'GET /api/dashboard/chart' => 'DashboardController@getChartData',
     'GET /api/user/check-updates' => 'UserController@checkUpdates',
+    'GET /api/companies' => 'CompanyController@api',
+    'GET /api/companies/{id}/usage' => 'CompanyController@show',
+    'GET /api/companies/{id}/transactions' => 'DailyTxnController@getByDateRange',
 
     // Error pages
     'GET /403' => 'ErrorController@forbidden',

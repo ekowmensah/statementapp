@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../Models/DailyTxn.php';
 require_once __DIR__ . '/../Models/MonthLock.php';
+require_once __DIR__ . '/../Models/Company.php';
 require_once __DIR__ . '/../Helpers/auth.php';
 require_once __DIR__ . '/../Helpers/response.php';
 require_once __DIR__ . '/../Helpers/money.php';
@@ -15,12 +16,14 @@ class ReportsController
 {
     private $dailyTxnModel;
     private $monthLockModel;
+    private $companyModel;
     private $db;
 
     public function __construct()
     {
         $this->dailyTxnModel = new DailyTxn();
         $this->monthLockModel = new MonthLock();
+        $this->companyModel = new Company();
         $this->db = Database::getInstance();
     }
 
@@ -1434,5 +1437,685 @@ class ReportsController
         }
         
         return $insights;
+    }
+
+    /**
+     * Show consolidated reports for all financial metrics
+     */
+    public function consolidated()
+    {
+        Auth::requirePermission('view_reports');
+
+        // Get filter parameters
+        $startDate = $_GET['start_date'] ?? date('Y-01-01'); // Start of current year
+        $endDate = $_GET['end_date'] ?? date('Y-12-31'); // End of current year
+        $companyId = $_GET['company_id'] ?? ''; // Default to empty (all companies)
+        $groupBy = $_GET['group_by'] ?? 'month'; // month, quarter, year
+        
+        // Range filters for each metric
+        $rangeFilters = [
+            'ca_min' => $_GET['ca_min'] ?? '',
+            'ca_max' => $_GET['ca_max'] ?? '',
+            'ag1_min' => $_GET['ag1_min'] ?? '',
+            'ag1_max' => $_GET['ag1_max'] ?? '',
+            'av1_min' => $_GET['av1_min'] ?? '',
+            'av1_max' => $_GET['av1_max'] ?? '',
+            'ag2_min' => $_GET['ag2_min'] ?? '',
+            'ag2_max' => $_GET['ag2_max'] ?? '',
+            'av2_min' => $_GET['av2_min'] ?? '',
+            'av2_max' => $_GET['av2_max'] ?? '',
+            'ga_min' => $_GET['ga_min'] ?? '',
+            'ga_max' => $_GET['ga_max'] ?? '',
+            're_min' => $_GET['re_min'] ?? '',
+            're_max' => $_GET['re_max'] ?? '',
+            'je_min' => $_GET['je_min'] ?? '',
+            'je_max' => $_GET['je_max'] ?? '',
+            'fi_min' => $_GET['fi_min'] ?? '',
+            'fi_max' => $_GET['fi_max'] ?? ''
+        ];
+
+        // Get companies for filter
+        $companies = $this->companyModel->getActive();
+
+        // Get consolidated data for all metrics
+        $consolidatedData = $this->getConsolidatedData($startDate, $endDate, $companyId, $groupBy, $rangeFilters);
+
+        // Get summary statistics
+        $summaryStats = $this->getConsolidatedSummary($startDate, $endDate, $companyId, $rangeFilters);
+
+        // Get trend analysis
+        $trendAnalysis = $this->getConsolidatedTrends($startDate, $endDate, $companyId, $groupBy, $rangeFilters);
+
+        $data = [
+            'title' => 'Consolidated Financial Reports - Daily Statement App',
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'company_id' => $companyId,
+            'group_by' => $groupBy,
+            'range_filters' => $rangeFilters,
+            'companies' => $companies,
+            'consolidated_data' => $consolidatedData,
+            'summary_stats' => $summaryStats,
+            'trend_analysis' => $trendAnalysis,
+            'metrics' => [
+                'ca' => ['name' => 'CA (Gross Inflow)', 'color' => '#0d6efd'],
+                'ag1' => ['name' => 'AG1 (First Tier)', 'color' => '#6610f2'],
+                'av1' => ['name' => 'AV1 (After AG1)', 'color' => '#6f42c1'],
+                'ag2' => ['name' => 'AG2 (Second Tier)', 'color' => '#d63384'],
+                'av2' => ['name' => 'AV2 (After AG2)', 'color' => '#dc3545'],
+                'ga' => ['name' => 'GA (Fixed Deduction)', 'color' => '#fd7e14'],
+                're' => ['name' => 'RE (Revenue Enhancement)', 'color' => '#ffc107'],
+                'je' => ['name' => 'JE (Joint Expenses)', 'color' => '#20c997'],
+                'fi' => ['name' => 'FI (Final Income)', 'color' => '#198754']
+            ]
+        ];
+
+        include __DIR__ . '/../Views/reports/consolidated.php';
+    }
+
+    /**
+     * Get consolidated data for all metrics
+     */
+    private function getConsolidatedData($startDate, $endDate, $companyId, $groupBy, $rangeFilters = [])
+    {
+        $whereConditions = ["txn_date BETWEEN ? AND ?"];
+        $params = [$startDate, $endDate];
+
+        if ($companyId) {
+            $whereConditions[] = "company_id = ?";
+            $params[] = $companyId;
+        }
+
+        // Add range filters
+        $this->addRangeFilters($whereConditions, $params, $rangeFilters);
+
+        $whereClause = implode(' AND ', $whereConditions);
+
+        // Determine grouping
+        switch ($groupBy) {
+            case 'quarter':
+                $groupField = "CONCAT(YEAR(txn_date), '-Q', QUARTER(txn_date))";
+                $orderBy = "YEAR(txn_date), QUARTER(txn_date)";
+                break;
+            case 'year':
+                $groupField = "YEAR(txn_date)";
+                $orderBy = "YEAR(txn_date)";
+                break;
+            case 'month':
+            default:
+                $groupField = "DATE_FORMAT(txn_date, '%Y-%m')";
+                $orderBy = "YEAR(txn_date), MONTH(txn_date)";
+                break;
+        }
+
+        $sql = "SELECT 
+                    {$groupField} as period,
+                    COUNT(*) as transaction_count,
+                    ROUND(SUM(ca), 2) as total_ca,
+                    ROUND(AVG(ca), 2) as avg_ca,
+                    ROUND(SUM(ag1), 2) as total_ag1,
+                    ROUND(AVG(ag1), 2) as avg_ag1,
+                    ROUND(SUM(av1), 2) as total_av1,
+                    ROUND(AVG(av1), 2) as avg_av1,
+                    ROUND(SUM(ag2), 2) as total_ag2,
+                    ROUND(AVG(ag2), 2) as avg_ag2,
+                    ROUND(SUM(av2), 2) as total_av2,
+                    ROUND(AVG(av2), 2) as avg_av2,
+                    ROUND(SUM(ga), 2) as total_ga,
+                    ROUND(AVG(ga), 2) as avg_ga,
+                    ROUND(SUM(re), 2) as total_re,
+                    ROUND(AVG(re), 2) as avg_re,
+                    ROUND(SUM(je), 2) as total_je,
+                    ROUND(AVG(je), 2) as avg_je,
+                    ROUND(SUM(fi), 2) as total_fi,
+                    ROUND(AVG(fi), 2) as avg_fi,
+                    ROUND(MAX(ca), 2) as max_ca,
+                    ROUND(MIN(ca), 2) as min_ca,
+                    ROUND(MAX(fi), 2) as max_fi,
+                    ROUND(MIN(fi), 2) as min_fi
+                FROM v_daily_txn 
+                WHERE {$whereClause}
+                GROUP BY {$groupField}
+                ORDER BY {$orderBy}";
+
+        return $this->db->fetchAll($sql, $params);
+    }
+
+    /**
+     * Get consolidated summary statistics
+     */
+    private function getConsolidatedSummary($startDate, $endDate, $companyId, $rangeFilters = [])
+    {
+        $whereConditions = ["txn_date BETWEEN ? AND ?"];
+        $params = [$startDate, $endDate];
+
+        if ($companyId) {
+            $whereConditions[] = "company_id = ?";
+            $params[] = $companyId;
+        }
+
+        // Add range filters
+        $this->addRangeFilters($whereConditions, $params, $rangeFilters);
+
+        $whereClause = implode(' AND ', $whereConditions);
+
+        $sql = "SELECT 
+                    COUNT(*) as total_transactions,
+                    COUNT(DISTINCT company_id) as companies_involved,
+                    ROUND(SUM(ca), 2) as grand_total_ca,
+                    ROUND(AVG(ca), 2) as overall_avg_ca,
+                    ROUND(SUM(ag1), 2) as grand_total_ag1,
+                    ROUND(SUM(av1), 2) as grand_total_av1,
+                    ROUND(SUM(ag2), 2) as grand_total_ag2,
+                    ROUND(SUM(av2), 2) as grand_total_av2,
+                    ROUND(SUM(ga), 2) as grand_total_ga,
+                    ROUND(SUM(re), 2) as grand_total_re,
+                    ROUND(SUM(je), 2) as grand_total_je,
+                    ROUND(SUM(fi), 2) as grand_total_fi,
+                    ROUND(AVG(fi), 2) as overall_avg_fi,
+                    ROUND(MAX(fi), 2) as best_fi,
+                    ROUND(MIN(fi), 2) as worst_fi,
+                    ROUND(STDDEV(fi), 2) as fi_volatility
+                FROM v_daily_txn 
+                WHERE {$whereClause}";
+
+        return $this->db->fetch($sql, $params);
+    }
+
+    /**
+     * Get consolidated trend analysis
+     */
+    private function getConsolidatedTrends($startDate, $endDate, $companyId, $groupBy, $rangeFilters = [])
+    {
+        $data = $this->getConsolidatedData($startDate, $endDate, $companyId, $groupBy, $rangeFilters);
+        
+        if (count($data) < 2) {
+            return ['trends' => [], 'growth_rates' => []];
+        }
+
+        $trends = [];
+        $growthRates = [];
+        $metrics = ['ca', 'ag1', 'av1', 'ag2', 'av2', 'ga', 're', 'je', 'fi'];
+
+        foreach ($metrics as $metric) {
+            $values = array_column($data, "total_{$metric}");
+            $periods = array_column($data, 'period');
+            
+            // Calculate trend direction
+            $firstValue = reset($values);
+            $lastValue = end($values);
+            
+            if ($firstValue > 0) {
+                $growthRate = (($lastValue - $firstValue) / $firstValue) * 100;
+            } else {
+                $growthRate = 0;
+            }
+            
+            $trends[$metric] = [
+                'direction' => $growthRate > 5 ? 'up' : ($growthRate < -5 ? 'down' : 'stable'),
+                'growth_rate' => $growthRate,
+                'first_value' => $firstValue,
+                'last_value' => $lastValue,
+                'peak_value' => max($values),
+                'low_value' => min($values)
+            ];
+            
+            $growthRates[$metric] = $growthRate;
+        }
+
+        return [
+            'trends' => $trends,
+            'growth_rates' => $growthRates,
+            'period_count' => count($data)
+        ];
+    }
+
+    /**
+     * Export consolidated reports in various formats
+     */
+    public function exportConsolidated()
+    {
+        Auth::requirePermission('view_reports');
+
+        $format = $_GET['format'] ?? 'pdf';
+        $includeCharts = isset($_GET['include_charts']) ? (bool)$_GET['include_charts'] : true;
+        $includeSummary = isset($_GET['include_summary']) ? (bool)$_GET['include_summary'] : true;
+        $includeDetails = isset($_GET['include_details']) ? (bool)$_GET['include_details'] : true;
+        $includeTrends = isset($_GET['include_trends']) ? (bool)$_GET['include_trends'] : true;
+
+        // Get the same data as the main report
+        $startDate = $_GET['start_date'] ?? date('Y-01-01');
+        $endDate = $_GET['end_date'] ?? date('Y-12-31');
+        $companyId = $_GET['company_id'] ?? '';
+        $groupBy = $_GET['group_by'] ?? 'month';
+        
+        $rangeFilters = [];
+        foreach (['ca', 'ag1', 'av1', 'ag2', 'av2', 'ga', 're', 'je', 'fi'] as $metric) {
+            $rangeFilters["{$metric}_min"] = $_GET["{$metric}_min"] ?? '';
+            $rangeFilters["{$metric}_max"] = $_GET["{$metric}_max"] ?? '';
+        }
+
+        $companies = $this->companyModel->getActive();
+        $consolidatedData = $this->getConsolidatedData($startDate, $endDate, $companyId, $groupBy, $rangeFilters);
+        $summaryStats = $this->getConsolidatedSummary($startDate, $endDate, $companyId, $rangeFilters);
+        $trendAnalysis = $this->getConsolidatedTrends($startDate, $endDate, $companyId, $groupBy, $rangeFilters);
+
+        $exportData = [
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'company_id' => $companyId,
+            'group_by' => $groupBy,
+            'companies' => $companies,
+            'consolidated_data' => $consolidatedData,
+            'summary_stats' => $summaryStats,
+            'trend_analysis' => $trendAnalysis,
+            'range_filters' => $rangeFilters,
+            'export_options' => [
+                'include_charts' => $includeCharts,
+                'include_summary' => $includeSummary,
+                'include_details' => $includeDetails,
+                'include_trends' => $includeTrends
+            ]
+        ];
+
+        switch ($format) {
+            case 'pdf':
+                return $this->exportToPDF($exportData);
+            case 'excel':
+                return $this->exportToExcel($exportData);
+            case 'csv':
+                return $this->exportToCSV($exportData);
+            default:
+                Response::error('Invalid export format');
+        }
+    }
+
+    /**
+     * Export to PDF format
+     */
+    private function exportToPDF($data)
+    {
+        // Generate filename
+        $companyName = '';
+        if (!empty($data['company_id'])) {
+            foreach ($data['companies'] as $company) {
+                if ($company['id'] == $data['company_id']) {
+                    $companyName = '_' . preg_replace('/[^A-Za-z0-9_-]/', '', $company['name']);
+                    break;
+                }
+            }
+        }
+        
+        $filename = 'Consolidated_Report_' . $data['start_date'] . '_to_' . $data['end_date'] . $companyName . '_' . date('Y-m-d_H-i-s') . '.html';
+
+        // Set headers for HTML download (which can be printed to PDF)
+        header('Content-Type: text/html; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: private, max-age=0, must-revalidate');
+        header('Pragma: public');
+
+        // Generate PDF-ready HTML content
+        $html = $this->generatePDFContent($data);
+        
+        // Output HTML that can be printed to PDF by the browser
+        echo $html;
+        exit;
+    }
+
+    /**
+     * Export to Excel format
+     */
+    private function exportToExcel($data)
+    {
+        $companyName = '';
+        if (!empty($data['company_id'])) {
+            foreach ($data['companies'] as $company) {
+                if ($company['id'] == $data['company_id']) {
+                    $companyName = '_' . preg_replace('/[^A-Za-z0-9_-]/', '', $company['name']);
+                    break;
+                }
+            }
+        }
+        
+        $filename = 'Consolidated_Report_' . $data['start_date'] . '_to_' . $data['end_date'] . $companyName . '_' . date('Y-m-d_H-i-s') . '.xlsx';
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: private, max-age=0, must-revalidate');
+        header('Pragma: public');
+
+        // Generate Excel content
+        echo $this->generateExcelContent($data);
+        exit;
+    }
+
+    /**
+     * Export to CSV format
+     */
+    private function exportToCSV($data)
+    {
+        $companyName = '';
+        if (!empty($data['company_id'])) {
+            foreach ($data['companies'] as $company) {
+                if ($company['id'] == $data['company_id']) {
+                    $companyName = '_' . preg_replace('/[^A-Za-z0-9_-]/', '', $company['name']);
+                    break;
+                }
+            }
+        }
+        
+        $filename = 'Consolidated_Report_' . $data['start_date'] . '_to_' . $data['end_date'] . $companyName . '_' . date('Y-m-d_H-i-s') . '.csv';
+
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: private, max-age=0, must-revalidate');
+        header('Pragma: public');
+
+        // Generate CSV content
+        $output = fopen('php://output', 'w');
+        
+        // Add BOM for UTF-8
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+        
+        // Report header
+        fputcsv($output, ['Consolidated Financial Report']);
+        fputcsv($output, ['Generated on', date('Y-m-d H:i:s')]);
+        fputcsv($output, ['Period', $data['start_date'] . ' to ' . $data['end_date']]);
+        fputcsv($output, ['Company', empty($data['company_id']) ? 'All Companies' : $this->getCompanyName($data['company_id'], $data['companies'])]);
+        fputcsv($output, ['Grouping', ucfirst($data['group_by'])]);
+        fputcsv($output, []); // Empty row
+
+        // Summary statistics
+        if ($data['export_options']['include_summary']) {
+            fputcsv($output, ['SUMMARY STATISTICS']);
+            fputcsv($output, ['Total Transactions', $data['summary_stats']['total_transactions']]);
+            fputcsv($output, ['Companies Involved', $data['summary_stats']['companies_involved']]);
+            fputcsv($output, ['Grand Total CA', 'GH₵' . number_format($data['summary_stats']['grand_total_ca'], 2)]);
+            fputcsv($output, ['Grand Total FI', 'GH₵' . number_format($data['summary_stats']['grand_total_fi'], 2)]);
+            fputcsv($output, ['Average FI', 'GH₵' . number_format($data['summary_stats']['overall_avg_fi'], 2)]);
+            fputcsv($output, []); // Empty row
+        }
+
+        // Detailed data
+        if ($data['export_options']['include_details']) {
+            fputcsv($output, ['DETAILED BREAKDOWN']);
+            fputcsv($output, ['Period', 'Transactions', 'CA', 'AG1', 'AV1', 'AG2', 'AV2', 'GA', 'RE', 'JE', 'FI']);
+            
+            foreach ($data['consolidated_data'] as $row) {
+                fputcsv($output, [
+                    $row['period'],
+                    $row['transaction_count'],
+                    number_format($row['total_ca'], 2),
+                    number_format($row['total_ag1'], 2),
+                    number_format($row['total_av1'], 2),
+                    number_format($row['total_ag2'], 2),
+                    number_format($row['total_av2'], 2),
+                    number_format($row['total_ga'], 2),
+                    number_format($row['total_re'], 2),
+                    number_format($row['total_je'], 2),
+                    number_format($row['total_fi'], 2)
+                ]);
+            }
+        }
+
+        fclose($output);
+        exit;
+    }
+
+    /**
+     * Generate PDF content
+     */
+    private function generatePDFContent($data)
+    {
+        ob_start();
+        ?>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Consolidated Financial Report</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                .header { text-align: center; margin-bottom: 30px; }
+                .company-logo { font-size: 24px; font-weight: bold; color: #0d6efd; }
+                .report-title { font-size: 20px; margin: 10px 0; }
+                .report-info { font-size: 12px; color: #666; }
+                .section { margin: 20px 0; }
+                .section-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; border-bottom: 2px solid #0d6efd; padding-bottom: 5px; }
+                table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f8f9fa; font-weight: bold; }
+                .text-right { text-align: right; }
+                .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 20px 0; }
+                .summary-item { padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+                .summary-value { font-size: 18px; font-weight: bold; color: #0d6efd; }
+                .print-instructions { background: #f8f9fa; padding: 15px; border: 1px solid #ddd; margin-bottom: 20px; }
+                @media print { 
+                    body { margin: 0; } 
+                    .print-instructions { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="print-instructions">
+                <h4>📄 PDF Report Ready</h4>
+                <p><strong>To save as PDF:</strong> Press <kbd>Ctrl+P</kbd> (or <kbd>Cmd+P</kbd> on Mac), then select "Save as PDF" as the destination.</p>
+                <p><strong>Alternative:</strong> Use your browser's print function and choose "Save as PDF" option.</p>
+            </div>
+            
+            <div class="header">
+                <div class="company-logo">Daily Statement App</div>
+                <div class="report-title">Consolidated Financial Report</div>
+                <div class="report-info">
+                    Period: <?= $data['start_date'] ?> to <?= $data['end_date'] ?><br>
+                    Company: <?= empty($data['company_id']) ? 'All Companies' : $this->getCompanyName($data['company_id'], $data['companies']) ?><br>
+                    Generated: <?= date('Y-m-d H:i:s') ?>
+                </div>
+            </div>
+
+            <?php if ($data['export_options']['include_summary']): ?>
+            <div class="section">
+                <div class="section-title">Executive Summary</div>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <div>Total Transactions</div>
+                        <div class="summary-value"><?= number_format($data['summary_stats']['total_transactions']) ?></div>
+                    </div>
+                    <div class="summary-item">
+                        <div>Grand Total FI</div>
+                        <div class="summary-value">GH₵<?= number_format($data['summary_stats']['grand_total_fi'], 2) ?></div>
+                    </div>
+                    <div class="summary-item">
+                        <div>Average FI</div>
+                        <div class="summary-value">GH₵<?= number_format($data['summary_stats']['overall_avg_fi'], 2) ?></div>
+                    </div>
+                    <div class="summary-item">
+                        <div>Companies Involved</div>
+                        <div class="summary-value"><?= number_format($data['summary_stats']['companies_involved']) ?></div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($data['export_options']['include_details']): ?>
+            <div class="section">
+                <div class="section-title">Detailed Breakdown</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Period</th>
+                            <th class="text-right">Transactions</th>
+                            <th class="text-right">CA</th>
+                            <th class="text-right">AG1</th>
+                            <th class="text-right">AV1</th>
+                            <th class="text-right">AG2</th>
+                            <th class="text-right">AV2</th>
+                            <th class="text-right">GA</th>
+                            <th class="text-right">RE</th>
+                            <th class="text-right">JE</th>
+                            <th class="text-right">FI</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($data['consolidated_data'] as $row): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($row['period']) ?></td>
+                            <td class="text-right"><?= number_format($row['transaction_count']) ?></td>
+                            <td class="text-right">GH₵<?= number_format($row['total_ca'], 2) ?></td>
+                            <td class="text-right">GH₵<?= number_format($row['total_ag1'], 2) ?></td>
+                            <td class="text-right">GH₵<?= number_format($row['total_av1'], 2) ?></td>
+                            <td class="text-right">GH₵<?= number_format($row['total_ag2'], 2) ?></td>
+                            <td class="text-right">GH₵<?= number_format($row['total_av2'], 2) ?></td>
+                            <td class="text-right">GH₵<?= number_format($row['total_ga'], 2) ?></td>
+                            <td class="text-right">GH₵<?= number_format($row['total_re'], 2) ?></td>
+                            <td class="text-right">GH₵<?= number_format($row['total_je'], 2) ?></td>
+                            <td class="text-right">GH₵<?= number_format($row['total_fi'], 2) ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($data['export_options']['include_trends'] && !empty($data['trend_analysis']['trends'])): ?>
+            <div class="section">
+                <div class="section-title">Performance Trends</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th class="text-right">Growth Rate</th>
+                            <th class="text-right">First Value</th>
+                            <th class="text-right">Last Value</th>
+                            <th class="text-right">Peak Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php 
+                        $metricNames = [
+                            'ca' => 'CA (Gross Inflow)',
+                            'ag1' => 'AG1 (First Tier)',
+                            'av1' => 'AV1 (After AG1)',
+                            'ag2' => 'AG2 (Second Tier)',
+                            'av2' => 'AV2 (After AG2)',
+                            'ga' => 'GA (Fixed Deduction)',
+                            're' => 'RE (Revenue Enhancement)',
+                            'je' => 'JE (Joint Expenses)',
+                            'fi' => 'FI (Final Income)'
+                        ];
+                        ?>
+                        <?php foreach ($data['trend_analysis']['trends'] as $metric => $trend): ?>
+                        <tr>
+                            <td><?= $metricNames[$metric] ?></td>
+                            <td class="text-right"><?= number_format($trend['growth_rate'], 1) ?>%</td>
+                            <td class="text-right">GH₵<?= number_format($trend['first_value'], 2) ?></td>
+                            <td class="text-right">GH₵<?= number_format($trend['last_value'], 2) ?></td>
+                            <td class="text-right">GH₵<?= number_format($trend['peak_value'], 2) ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+
+            <div class="section" style="margin-top: 40px; text-align: center; font-size: 12px; color: #666;">
+                <p>This report was generated by Daily Statement App on <?= date('Y-m-d H:i:s') ?></p>
+                <p>© <?= date('Y') ?> Daily Statement App. All rights reserved.</p>
+            </div>
+        </body>
+        </html>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * Generate Excel content (simplified XML format)
+     */
+    private function generateExcelContent($data)
+    {
+        // This is a simplified Excel XML format
+        // For production, consider using PhpSpreadsheet library
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+        $xml .= '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' . "\n";
+        $xml .= '<Worksheet ss:Name="Consolidated Report">' . "\n";
+        $xml .= '<Table>' . "\n";
+        
+        // Header
+        $xml .= '<Row><Cell><Data ss:Type="String">Consolidated Financial Report</Data></Cell></Row>' . "\n";
+        $xml .= '<Row><Cell><Data ss:Type="String">Period: ' . $data['start_date'] . ' to ' . $data['end_date'] . '</Data></Cell></Row>' . "\n";
+        $xml .= '<Row></Row>' . "\n";
+        
+        // Data headers
+        $xml .= '<Row>';
+        $xml .= '<Cell><Data ss:Type="String">Period</Data></Cell>';
+        $xml .= '<Cell><Data ss:Type="String">Transactions</Data></Cell>';
+        $xml .= '<Cell><Data ss:Type="String">CA</Data></Cell>';
+        $xml .= '<Cell><Data ss:Type="String">AG1</Data></Cell>';
+        $xml .= '<Cell><Data ss:Type="String">AV1</Data></Cell>';
+        $xml .= '<Cell><Data ss:Type="String">AG2</Data></Cell>';
+        $xml .= '<Cell><Data ss:Type="String">AV2</Data></Cell>';
+        $xml .= '<Cell><Data ss:Type="String">GA</Data></Cell>';
+        $xml .= '<Cell><Data ss:Type="String">RE</Data></Cell>';
+        $xml .= '<Cell><Data ss:Type="String">JE</Data></Cell>';
+        $xml .= '<Cell><Data ss:Type="String">FI</Data></Cell>';
+        $xml .= '</Row>' . "\n";
+        
+        // Data rows
+        foreach ($data['consolidated_data'] as $row) {
+            $xml .= '<Row>';
+            $xml .= '<Cell><Data ss:Type="String">' . htmlspecialchars($row['period']) . '</Data></Cell>';
+            $xml .= '<Cell><Data ss:Type="Number">' . $row['transaction_count'] . '</Data></Cell>';
+            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_ca'] . '</Data></Cell>';
+            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_ag1'] . '</Data></Cell>';
+            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_av1'] . '</Data></Cell>';
+            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_ag2'] . '</Data></Cell>';
+            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_av2'] . '</Data></Cell>';
+            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_ga'] . '</Data></Cell>';
+            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_re'] . '</Data></Cell>';
+            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_je'] . '</Data></Cell>';
+            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_fi'] . '</Data></Cell>';
+            $xml .= '</Row>' . "\n";
+        }
+        
+        $xml .= '</Table>' . "\n";
+        $xml .= '</Worksheet>' . "\n";
+        $xml .= '</Workbook>' . "\n";
+        
+        return $xml;
+    }
+
+    /**
+     * Get company name by ID
+     */
+    private function getCompanyName($companyId, $companies)
+    {
+        foreach ($companies as $company) {
+            if ($company['id'] == $companyId) {
+                return $company['name'];
+            }
+        }
+        return 'Unknown Company';
+    }
+
+    /**
+     * Add range filters to WHERE conditions
+     */
+    private function addRangeFilters(&$whereConditions, &$params, $rangeFilters)
+    {
+        $metrics = ['ca', 'ag1', 'av1', 'ag2', 'av2', 'ga', 're', 'je', 'fi'];
+        
+        foreach ($metrics as $metric) {
+            // Minimum value filter
+            if (!empty($rangeFilters["{$metric}_min"]) && is_numeric($rangeFilters["{$metric}_min"])) {
+                $whereConditions[] = "{$metric} >= ?";
+                $params[] = floatval($rangeFilters["{$metric}_min"]);
+            }
+            
+            // Maximum value filter
+            if (!empty($rangeFilters["{$metric}_max"]) && is_numeric($rangeFilters["{$metric}_max"])) {
+                $whereConditions[] = "{$metric} <= ?";
+                $params[] = floatval($rangeFilters["{$metric}_max"]);
+            }
+        }
     }
 }

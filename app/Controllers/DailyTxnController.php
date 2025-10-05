@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../Models/DailyTxn.php';
 require_once __DIR__ . '/../Models/Rate.php';
 require_once __DIR__ . '/../Models/MonthLock.php';
+require_once __DIR__ . '/../Models/Company.php';
 require_once __DIR__ . '/../Helpers/auth.php';
 require_once __DIR__ . '/../Helpers/csrf.php';
 require_once __DIR__ . '/../Helpers/validate.php';
@@ -20,12 +21,14 @@ class DailyTxnController
     private $dailyTxnModel;
     private $rateModel;
     private $monthLockModel;
+    private $companyModel;
 
     public function __construct()
     {
         $this->dailyTxnModel = new DailyTxn();
         $this->rateModel = new Rate();
         $this->monthLockModel = new MonthLock();
+        $this->companyModel = new Company();
     }
 
     /**
@@ -45,12 +48,13 @@ class DailyTxnController
         $month = $_GET['month'] ?? date('n');
         $year = $_GET['year'] ?? date('Y');
         $search = trim($_GET['search'] ?? '');
+        $companyId = $_GET['company_id'] ?? '';
 
         // Build date range based on filter type
         $dateRange = $this->buildDateRange($filterType, $year, $month);
         
         // Get transactions with enhanced filtering
-        $result = $this->getFilteredTransactions($dateRange, $search, $page, $perPage);
+        $result = $this->getFilteredTransactions($dateRange, $search, $page, $perPage, $companyId);
         $transactions = $result['transactions'];
         $totalCount = $result['total_count'];
 
@@ -72,10 +76,13 @@ class DailyTxnController
         $lockInfo = $isLocked ? $this->monthLockModel->getLockInfo($year, $month) : null;
 
         // Calculate totals for the filtered period
-        $totals = $this->calculateFilteredTotals($dateRange, $search);
+        $totals = $this->calculateFilteredTotals($dateRange, $search, $companyId);
         
         // Get available year range from database
         $yearRange = $this->getAvailableYearRange();
+        
+        // Get companies for filter dropdown
+        $companies = $this->companyModel->getActive();
 
         $data = [
             'title' => 'Daily Transactions - Daily Statement App',
@@ -93,6 +100,8 @@ class DailyTxnController
             'selected_year' => $year,
             'year_range' => $yearRange,
             'search' => $search,
+            'company_id' => $companyId,
+            'companies' => $companies,
             'date_range' => $dateRange,
             'is_locked' => $isLocked,
             'lock_info' => $lockInfo
@@ -147,7 +156,7 @@ class DailyTxnController
     /**
      * Get filtered transactions with pagination
      */
-    private function getFilteredTransactions($dateRange, $search, $page, $perPage)
+    private function getFilteredTransactions($dateRange, $search, $page, $perPage, $companyId = '')
     {
         $db = Database::getInstance();
         $offset = ($page - 1) * $perPage;
@@ -160,9 +169,16 @@ class DailyTxnController
         $params[] = $dateRange['start'];
         $params[] = $dateRange['end'];
         
+        // Company filter
+        if ($companyId) {
+            $whereConditions[] = "company_id = ?";
+            $params[] = $companyId;
+        }
+        
         // Search filter
         if ($search) {
-            $whereConditions[] = "(txn_date LIKE ? OR note LIKE ?)";
+            $whereConditions[] = "(txn_date LIKE ? OR note LIKE ? OR company_name LIKE ?)";
+            $params[] = "%{$search}%";
             $params[] = "%{$search}%";
             $params[] = "%{$search}%";
         }
@@ -190,7 +206,7 @@ class DailyTxnController
     /**
      * Calculate totals for filtered period
      */
-    private function calculateFilteredTotals($dateRange, $search)
+    private function calculateFilteredTotals($dateRange, $search, $companyId = '')
     {
         $db = Database::getInstance();
         
@@ -202,9 +218,16 @@ class DailyTxnController
         $params[] = $dateRange['start'];
         $params[] = $dateRange['end'];
         
+        // Company filter
+        if ($companyId) {
+            $whereConditions[] = "company_id = ?";
+            $params[] = $companyId;
+        }
+        
         // Search filter
         if ($search) {
-            $whereConditions[] = "(txn_date LIKE ? OR note LIKE ?)";
+            $whereConditions[] = "(txn_date LIKE ? OR note LIKE ? OR company_name LIKE ?)";
+            $params[] = "%{$search}%";
             $params[] = "%{$search}%";
             $params[] = "%{$search}%";
         }
@@ -266,8 +289,10 @@ class DailyTxnController
                 'ca' => '0.00',
                 'ga' => '0.00',
                 'je' => '0.00',
+                'company_id' => '',
                 'note' => ''
             ],
+            'companies' => $this->companyModel->getActive(),
             'csrf_token' => CSRF::getToken(),
             'is_edit' => false
         ];
@@ -299,6 +324,7 @@ class DailyTxnController
             'je' => trim($_POST['je'] ?? '0'),
             'rate_ag1' => trim($_POST['rate_ag1'] ?? '21'),
             'rate_ag2' => trim($_POST['rate_ag2'] ?? '4'),
+            'company_id' => trim($_POST['company_id'] ?? ''),
             'note' => trim($_POST['note'] ?? '')
         ];
 
@@ -383,6 +409,7 @@ class DailyTxnController
         $data = [
             'title' => 'Edit Daily Transaction - Daily Statement App',
             'transaction' => $transaction,
+            'companies' => $this->companyModel->getActive(),
             'csrf_token' => CSRF::getToken(),
             'is_edit' => true
         ];
@@ -426,6 +453,7 @@ class DailyTxnController
             'je' => trim($_POST['je'] ?? '0'),
             'rate_ag1' => trim($_POST['rate_ag1'] ?? '21'),
             'rate_ag2' => trim($_POST['rate_ag2'] ?? '4'),
+            'company_id' => trim($_POST['company_id'] ?? ''),
             'note' => trim($_POST['note'] ?? '')
         ];
 
@@ -745,19 +773,27 @@ class DailyTxnController
     {
         $db = Database::getInstance();
         
+        // Query directly from daily_txn table to avoid issues with view joins
         $result = $db->fetch(
             "SELECT 
                 MIN(YEAR(txn_date)) as min_year,
                 MAX(YEAR(txn_date)) as max_year
-             FROM v_daily_txn"
+             FROM daily_txn 
+             WHERE txn_date IS NOT NULL"
         );
         
-        $minYear = $result['min_year'] ?? date('Y');
-        $maxYear = $result['max_year'] ?? date('Y');
-        
-        // Ensure we have at least current year
-        $minYear = min($minYear, date('Y'));
-        $maxYear = max($maxYear, date('Y'));
+        // If no data exists, provide a reasonable range
+        if (empty($result['min_year']) || empty($result['max_year'])) {
+            $minYear = date('Y') - 2; // 2 years back
+            $maxYear = date('Y') + 1; // 1 year forward
+        } else {
+            $minYear = $result['min_year'];
+            $maxYear = $result['max_year'];
+            
+            // Extend range to include at least current year
+            $minYear = min($minYear, date('Y'));
+            $maxYear = max($maxYear, date('Y'));
+        }
         
         return [
             'min' => (int)$minYear,

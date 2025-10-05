@@ -17,11 +17,37 @@ function isActive($path, $currentPath) {
     </li>
     
     <?php if (Auth::can('view_daily')): ?>
-    <li class="nav-item">
-        <a class="nav-link <?= isActive('/daily', $currentPath) ?>" href="<?= Response::url('daily') ?>">
+    <li class="nav-group <?php if (isActive('/daily', $currentPath) || isActive('/companies', $currentPath)) echo 'show'; ?>">
+        <a class="nav-link nav-group-toggle" href="#">
             <i class="nav-icon bi bi-calendar-plus"></i>
             Daily Transactions
         </a>
+        <ul class="nav-group-items">
+            <li class="nav-item">
+                <a class="nav-link <?= isActive('/daily', $currentPath) ?>" href="<?= Response::url('daily') ?>">
+                    <i class="nav-icon bi bi-list-ul"></i>
+                    View Transactions
+                </a>
+            </li>
+            
+            <?php if (Auth::can('create_daily')): ?>
+            <li class="nav-item">
+                <a class="nav-link" href="<?= Response::url('daily/create') ?>">
+                    <i class="nav-icon bi bi-plus-circle"></i>
+                    Add Transaction
+                </a>
+            </li>
+            <?php endif; ?>
+            
+            <?php if (Auth::can('view_companies')): ?>
+            <li class="nav-item">
+                <a class="nav-link <?= isActive('/companies', $currentPath) ?>" href="<?= Response::url('companies') ?>">
+                    <i class="nav-icon bi bi-building"></i>
+                    Manage Companies
+                </a>
+            </li>
+            <?php endif; ?>
+        </ul>
     </li>
     <?php endif; ?>
     
@@ -36,11 +62,25 @@ function isActive($path, $currentPath) {
     <?php endif; ?>
     
     <?php if (Auth::can('view_reports')): ?>
-    <li class="nav-item">
-        <a class="nav-link <?= isActive('/reports', $currentPath) ?>" href="<?= Response::url('reports') ?>">
+    <li class="nav-group <?php if (isActive('/reports', $currentPath)) echo 'show'; ?>">
+        <a class="nav-link nav-group-toggle" href="#">
             <i class="nav-icon bi bi-graph-up"></i>
-            Reports
+            Reports & Analytics
         </a>
+        <ul class="nav-group-items">
+            <li class="nav-item">
+                <a class="nav-link <?= $currentPath === '/reports' ? 'active' : '' ?>" href="<?= Response::url('reports') ?>">
+                    <i class="nav-icon bi bi-bar-chart"></i>
+                    Professional Reports
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?= $currentPath === '/reports/consolidated' ? 'active' : '' ?>" href="<?= Response::url('reports/consolidated') ?>">
+                    <i class="nav-icon bi bi-pie-chart"></i>
+                    Consolidated Reports
+                </a>
+            </li>
+        </ul>
     </li>
     <?php endif; ?>
     
