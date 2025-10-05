@@ -1,75 +1,315 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Generate Icons</title>
+    <title>PWA Icon Generator - Daily Statement App</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            background: #f8f9fa;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .icon-item {
+            text-align: center;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .download-all {
+            background: #28a745;
+            padding: 12px 24px;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
 </head>
 <body>
-    <h2>Icon Generator</h2>
-    <p>This page generates PNG icons from the SVG favicon.</p>
-    
-    <canvas id="canvas192" width="192" height="192" style="border: 1px solid #ccc; margin: 10px;"></canvas>
-    <canvas id="canvas512" width="512" height="512" style="border: 1px solid #ccc; margin: 10px;"></canvas>
-    
-    <br>
-    <button onclick="downloadIcon(192)">Download 192x192</button>
-    <button onclick="downloadIcon(512)">Download 512x512</button>
+    <div class="container">
+        <h1>🎨 PWA Icon Generator</h1>
+        <p>Generate all required PWA icons for Daily Statement App from the SVG favicon.</p>
+        
+        <button class="download-all" onclick="downloadAllIcons()">📦 Download All Icons</button>
+        
+        <div class="progress">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <p id="status">Ready to generate icons...</p>
+        
+        <div class="icon-grid" id="iconGrid">
+            <!-- Icons will be generated here -->
+        </div>
+    </div>
     
     <script>
-        function generateIcon(size) {
-            const canvas = document.getElementById(`canvas${size}`);
+        const iconSizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        let generatedIcons = {};
+        
+        function createIconCanvas(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
             const ctx = canvas.getContext('2d');
             
-            // Create gradient
+            // Enable anti-aliasing
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            
+            // Create gradient background
             const gradient = ctx.createLinearGradient(0, 0, size, size);
             gradient.addColorStop(0, '#667eea');
             gradient.addColorStop(1, '#764ba2');
             
-            // Background circle
+            // Background circle with padding
+            const padding = size * 0.05;
+            const radius = (size - padding * 2) / 2;
             ctx.fillStyle = gradient;
             ctx.beginPath();
-            ctx.arc(size/2, size/2, size/2 - 10, 0, 2 * Math.PI);
+            ctx.arc(size/2, size/2, radius, 0, 2 * Math.PI);
             ctx.fill();
             
             // White border
             ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 4;
+            ctx.lineWidth = Math.max(2, size * 0.008);
             ctx.stroke();
             
-            // Calculator body
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.fillRect(size*0.25, size*0.2, size*0.5, size*0.6);
+            // Document/Statement icon
+            const docWidth = size * 0.4;
+            const docHeight = size * 0.5;
+            const docX = (size - docWidth) / 2;
+            const docY = size * 0.2;
             
-            // Screen
-            ctx.fillStyle = '#333';
-            ctx.fillRect(size*0.3, size*0.25, size*0.4, size*0.15);
+            // Add shadow
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowBlur = size * 0.02;
+            ctx.shadowOffsetX = size * 0.01;
+            ctx.shadowOffsetY = size * 0.01;
             
-            // Buttons
-            const buttonSize = size * 0.03;
-            const positions = [
-                [0.35, 0.5], [0.45, 0.5], [0.55, 0.5], [0.65, 0.5],
-                [0.35, 0.6], [0.45, 0.6], [0.55, 0.6], [0.65, 0.6],
-                [0.35, 0.7], [0.45, 0.7], [0.55, 0.7], [0.65, 0.7]
-            ];
+            // Main document
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.fillRect(docX, docY, docWidth, docHeight);
             
-            positions.forEach((pos, i) => {
-                ctx.fillStyle = (i === 7 || i === 11) ? '#764ba2' : '#667eea';
-                ctx.beginPath();
-                ctx.arc(pos[0] * size, pos[1] * size, buttonSize, 0, 2 * Math.PI);
-                ctx.fill();
+            // Document corner fold
+            const foldSize = size * 0.08;
+            ctx.fillStyle = 'rgba(220, 220, 220, 0.8)';
+            ctx.beginPath();
+            ctx.moveTo(docX + docWidth - foldSize, docY);
+            ctx.lineTo(docX + docWidth, docY + foldSize);
+            ctx.lineTo(docX + docWidth, docY);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Reset shadow
+            ctx.shadowColor = 'transparent';
+            
+            // Header section
+            ctx.fillStyle = '#667eea';
+            ctx.fillRect(docX + size * 0.02, docY + size * 0.03, docWidth - size * 0.04, size * 0.08);
+            
+            // Header text
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${size * 0.03}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText('STATEMENT', docX + docWidth/2, docY + size * 0.075);
+            
+            // Content lines
+            const lineHeight = size * 0.025;
+            const lineStart = docY + size * 0.15;
+            const lineMargin = size * 0.03;
+            
+            // Transaction lines
+            for (let i = 0; i < 6; i++) {
+                const y = lineStart + i * lineHeight * 1.5;
+                
+                // Date column
+                ctx.fillStyle = '#4a5568';
+                ctx.font = `${size * 0.018}px monospace`;
+                ctx.textAlign = 'left';
+                ctx.fillText('2025-10-0' + (i + 1), docX + lineMargin, y);
+                
+                // Description
+                ctx.fillStyle = '#2d3748';
+                ctx.font = `${size * 0.016}px Arial`;
+                const descriptions = ['Transaction A', 'Payment B', 'Transfer C', 'Deposit D', 'Withdrawal E', 'Fee F'];
+                ctx.fillText(descriptions[i], docX + lineMargin + size * 0.12, y);
+                
+                // Amount
+                ctx.fillStyle = i % 2 === 0 ? '#38a169' : '#e53e3e';
+                ctx.font = `bold ${size * 0.018}px monospace`;
+                ctx.textAlign = 'right';
+                const amounts = ['+1,250.00', '-450.00', '+2,100.00', '+850.00', '-125.00', '-25.00'];
+                ctx.fillText(amounts[i], docX + docWidth - lineMargin, y);
+            }
+            
+            // Total section
+            const totalY = lineStart + 6 * lineHeight * 1.5 + size * 0.02;
+            ctx.fillStyle = '#667eea';
+            ctx.fillRect(docX + lineMargin, totalY, docWidth - lineMargin * 2, size * 0.04);
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${size * 0.02}px Arial`;
+            ctx.textAlign = 'left';
+            ctx.fillText('TOTAL:', docX + lineMargin + size * 0.01, totalY + size * 0.025);
+            
+            ctx.textAlign = 'right';
+            ctx.fillText('GH₵ 3,600.00', docX + docWidth - lineMargin - size * 0.01, totalY + size * 0.025);
+            
+            // Chart/Graph element
+            const chartX = docX + docWidth * 0.7;
+            const chartY = docY + size * 0.15;
+            const chartSize = size * 0.12;
+            
+            // Mini bar chart
+            const bars = [0.3, 0.7, 0.5, 0.9, 0.4];
+            const barWidth = chartSize / bars.length * 0.6;
+            
+            for (let i = 0; i < bars.length; i++) {
+                const barHeight = chartSize * bars[i];
+                const x = chartX + i * (barWidth + size * 0.005);
+                const y = chartY + chartSize - barHeight;
+                
+                ctx.fillStyle = i === 3 ? '#38a169' : '#667eea';
+                ctx.fillRect(x, y, barWidth, barHeight);
+            }
+            
+            // Currency symbol
+            if (size >= 192) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.font = `bold ${size * 0.08}px Arial`;
+                ctx.textAlign = 'left';
+                ctx.fillText('GH₵', size * 0.7, size * 0.3);
+            }
+            
+            return canvas;
+        }
+        
+        function generateAllIcons() {
+            const iconGrid = document.getElementById('iconGrid');
+            iconGrid.innerHTML = '';
+            
+            iconSizes.forEach((size, index) => {
+                const iconItem = document.createElement('div');
+                iconItem.className = 'icon-item';
+                
+                const canvas = createIconCanvas(size);
+                canvas.id = `canvas${size}`;
+                
+                generatedIcons[size] = canvas;
+                
+                iconItem.innerHTML = `
+                    <h4>${size}x${size}px</h4>
+                    <div>${canvas.outerHTML}</div>
+                    <button onclick="downloadIcon(${size})">Download PNG</button>
+                `;
+                
+                iconGrid.appendChild(iconItem);
+                
+                // Update progress
+                const progress = ((index + 1) / iconSizes.length) * 100;
+                document.getElementById('progressBar').style.width = progress + '%';
+                document.getElementById('status').textContent = `Generated ${size}x${size} icon (${index + 1}/${iconSizes.length})`;
             });
+            
+            document.getElementById('status').textContent = 'All icons generated successfully! 🎉';
         }
         
         function downloadIcon(size) {
-            const canvas = document.getElementById(`canvas${size}`);
+            const canvas = generatedIcons[size];
+            if (!canvas) return;
+            
             const link = document.createElement('a');
             link.download = `icon-${size}.png`;
-            link.href = canvas.toDataURL();
+            link.href = canvas.toDataURL('image/png', 1.0);
             link.click();
         }
         
+        async function downloadAllIcons() {
+            if (Object.keys(generatedIcons).length === 0) {
+                generateAllIcons();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            document.getElementById('status').textContent = 'Downloading all icons...';
+            
+            for (let i = 0; i < iconSizes.length; i++) {
+                const size = iconSizes[i];
+                downloadIcon(size);
+                
+                // Small delay between downloads
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                const progress = ((i + 1) / iconSizes.length) * 100;
+                document.getElementById('progressBar').style.width = progress + '%';
+            }
+            
+            document.getElementById('status').textContent = 'All icons downloaded! 📱';
+        }
+        
+        // Add roundRect polyfill for older browsers
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radius) {
+                this.beginPath();
+                this.moveTo(x + radius, y);
+                this.lineTo(x + width - radius, y);
+                this.quadraticCurveTo(x + width, y, x + width, y + radius);
+                this.lineTo(x + width, y + height - radius);
+                this.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+                this.lineTo(x + radius, y + height);
+                this.quadraticCurveTo(x, y + height, x, y + height - radius);
+                this.lineTo(x, y + radius);
+                this.quadraticCurveTo(x, y, x + radius, y);
+                this.closePath();
+            };
+        }
+        
         // Generate icons on load
-        generateIcon(192);
-        generateIcon(512);
+        window.addEventListener('load', () => {
+            setTimeout(generateAllIcons, 500);
+        });
     </script>
 </body>
 </html>

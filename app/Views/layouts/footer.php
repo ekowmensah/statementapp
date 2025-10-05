@@ -183,15 +183,115 @@
             });
         });
 
-        // Unregister any existing service workers (cleanup)
+        // PWA Service Worker Registration
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for(let registration of registrations) {
-                    registration.unregister().then(function(boolean) {
-                        console.log('Service Worker unregistered:', boolean);
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('PWA: Service Worker registered successfully:', registration);
+                        
+                        // Check for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // New version available
+                                    showUpdateAvailable();
+                                }
+                            });
+                        });
+                    })
+                    .catch((error) => {
+                        console.log('PWA: Service Worker registration failed:', error);
                     });
-                }
             });
+        }
+
+        // PWA Install Prompt
+        let deferredPrompt;
+        let installButton;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('PWA: Install prompt available');
+            e.preventDefault();
+            deferredPrompt = e;
+            showInstallButton();
+        });
+
+        window.addEventListener('appinstalled', (e) => {
+            console.log('PWA: App installed successfully');
+            hideInstallButton();
+            showInstallSuccess();
+        });
+
+        function showInstallButton() {
+            // Create install button if it doesn't exist
+            if (!installButton) {
+                installButton = document.createElement('button');
+                installButton.innerHTML = '<i class="bi bi-download me-2"></i>Install App';
+                installButton.className = 'btn btn-outline-primary btn-sm position-fixed';
+                installButton.style.cssText = `
+                    bottom: 20px;
+                    right: 20px;
+                    z-index: 1050;
+                    border-radius: 25px;
+                    padding: 0.5rem 1rem;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    backdrop-filter: blur(10px);
+                    background: rgba(255,255,255,0.9);
+                `;
+                
+                installButton.addEventListener('click', installApp);
+                document.body.appendChild(installButton);
+                
+                // Auto-hide after 10 seconds
+                setTimeout(() => {
+                    if (installButton && installButton.parentNode) {
+                        installButton.style.opacity = '0.7';
+                    }
+                }, 10000);
+            }
+        }
+
+        function hideInstallButton() {
+            if (installButton && installButton.parentNode) {
+                installButton.remove();
+                installButton = null;
+            }
+        }
+
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('PWA: User accepted the install prompt');
+                    } else {
+                        console.log('PWA: User dismissed the install prompt');
+                    }
+                    deferredPrompt = null;
+                    hideInstallButton();
+                });
+            }
+        }
+
+        function showInstallSuccess() {
+            FormUtils.showSuccess('Daily Statement App installed successfully! You can now access it from your home screen.');
+        }
+
+        function showUpdateAvailable() {
+            const updateAlert = `
+                <div class="alert alert-info alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+                    <i class="bi bi-arrow-clockwise me-2"></i>
+                    <strong>Update Available</strong><br>
+                    <small>A new version of the app is available. Refresh to update.</small>
+                    <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="window.location.reload()">
+                        Refresh
+                    </button>
+                    <button type="button" class="btn-close" data-coreui-dismiss="alert"></button>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', updateAlert);
         }
 
         // Update header date dynamically

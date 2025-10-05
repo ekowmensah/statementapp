@@ -1,33 +1,73 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background -->
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
       <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
     </linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="4" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
   </defs>
   
   <!-- Background circle -->
-  <circle cx="50" cy="50" r="45" fill="url(#grad)" stroke="#fff" stroke-width="2"/>
+  <circle cx="256" cy="256" r="240" fill="url(#bg)" stroke="#fff" stroke-width="8"/>
   
-  <!-- Calculator icon -->
-  <rect x="25" y="20" width="50" height="60" rx="4" fill="#fff" opacity="0.9"/>
+  <!-- Statement Document icon -->
+  <g transform="translate(256,256)" filter="url(#shadow)">
+    <!-- Document body -->
+    <rect x="-90" y="-110" width="180" height="220" rx="12" fill="#fff" opacity="0.95"/>
+    
+    <!-- Document corner fold -->
+    <path d="M 60 -110 L 90 -80 L 90 -110 Z" fill="#e2e8f0" opacity="0.8"/>
+    
+    <!-- Header section -->
+    <rect x="-80" y="-95" width="160" height="35" rx="6" fill="#667eea"/>
+    <text x="0" y="-70" font-family="Arial" font-size="16" fill="#fff" text-anchor="middle" font-weight="bold">STATEMENT</text>
+    
+    <!-- Transaction lines -->
+    <g font-family="monospace" font-size="10">
+      <!-- Line 1 -->
+      <text x="-70" y="-40" fill="#4a5568">2025-10-01</text>
+      <text x="-10" y="-40" fill="#2d3748" font-family="Arial" font-size="9">Transaction A</text>
+      <text x="75" y="-40" fill="#38a169" text-anchor="end" font-weight="bold">+1,250.00</text>
+      
+      <!-- Line 2 -->
+      <text x="-70" y="-20" fill="#4a5568">2025-10-02</text>
+      <text x="-10" y="-20" fill="#2d3748" font-family="Arial" font-size="9">Payment B</text>
+      <text x="75" y="-20" fill="#e53e3e" text-anchor="end" font-weight="bold">-450.00</text>
+      
+      <!-- Line 3 -->
+      <text x="-70" y="0" fill="#4a5568">2025-10-03</text>
+      <text x="-10" y="0" fill="#2d3748" font-family="Arial" font-size="9">Transfer C</text>
+      <text x="75" y="0" fill="#38a169" text-anchor="end" font-weight="bold">+2,100.00</text>
+      
+      <!-- Line 4 -->
+      <text x="-70" y="20" fill="#4a5568">2025-10-04</text>
+      <text x="-10" y="20" fill="#2d3748" font-family="Arial" font-size="9">Deposit D</text>
+      <text x="75" y="20" fill="#38a169" text-anchor="end" font-weight="bold">+850.00</text>
+      
+      <!-- Line 5 -->
+      <text x="-70" y="40" fill="#4a5568">2025-10-05</text>
+      <text x="-10" y="40" fill="#2d3748" font-family="Arial" font-size="9">Fee F</text>
+      <text x="75" y="40" fill="#e53e3e" text-anchor="end" font-weight="bold">-25.00</text>
+    </g>
+    
+    <!-- Total section -->
+    <rect x="-70" y="60" width="140" height="20" rx="4" fill="#667eea"/>
+    <text x="-65" y="73" font-family="Arial" font-size="11" fill="#fff" font-weight="bold">TOTAL:</text>
+    <text x="65" y="73" font-family="monospace" font-size="11" fill="#fff" text-anchor="end" font-weight="bold">GH₵ 3,725.00</text>
+    
+    <!-- Mini bar chart -->
+    <g transform="translate(40, -40)">
+      <rect x="0" y="15" width="8" height="15" fill="#667eea"/>
+      <rect x="12" y="5" width="8" height="25" fill="#667eea"/>
+      <rect x="24" y="10" width="8" height="20" fill="#667eea"/>
+      <rect x="36" y="0" width="8" height="30" fill="#38a169"/>
+      <rect x="48" y="18" width="8" height="12" fill="#667eea"/>
+    </g>
+  </g>
   
-  <!-- Screen -->
-  <rect x="30" y="25" width="40" height="15" rx="2" fill="#333"/>
-  
-  <!-- Buttons -->
-  <circle cx="35" cy="50" r="3" fill="#667eea"/>
-  <circle cx="45" cy="50" r="3" fill="#667eea"/>
-  <circle cx="55" cy="50" r="3" fill="#667eea"/>
-  <circle cx="65" cy="50" r="3" fill="#667eea"/>
-  
-  <circle cx="35" cy="60" r="3" fill="#667eea"/>
-  <circle cx="45" cy="60" r="3" fill="#667eea"/>
-  <circle cx="55" cy="60" r="3" fill="#667eea"/>
-  <circle cx="65" cy="60" r="3" fill="#764ba2"/>
-  
-  <circle cx="35" cy="70" r="3" fill="#667eea"/>
-  <circle cx="45" cy="70" r="3" fill="#667eea"/>
-  <circle cx="55" cy="70" r="3" fill="#667eea"/>
-  <circle cx="65" cy="70" r="3" fill="#764ba2"/>
+  <!-- Currency symbol overlay -->
+  <text x="380" y="140" font-family="Arial" font-size="36" fill="#fff" opacity="0.9" font-weight="bold">GH₵</text>
 </svg>

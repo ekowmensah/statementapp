@@ -18,8 +18,25 @@
     <link rel="icon" type="image/png" sizes="512x512" href="<?= Response::url('icon-512.png') ?>">
     <link rel="apple-touch-icon" href="<?= Response::url('icon-192.png') ?>">
     
+    <!-- PWA Meta Tags -->
     <meta name="apple-mobile-web-app-title" content="Daily Statement">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="msapplication-TileColor" content="#667eea">
+    <meta name="msapplication-TileImage" content="<?= Response::url('icon-144.png') ?>">
+    <meta name="theme-color" content="#667eea">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="<?= Response::url('manifest.json') ?>">
+    
+    <!-- Additional PWA Icons -->
+    <link rel="apple-touch-icon" sizes="72x72" href="<?= Response::url('icon-72.png') ?>">
+    <link rel="apple-touch-icon" sizes="96x96" href="<?= Response::url('icon-96.png') ?>">
+    <link rel="apple-touch-icon" sizes="128x128" href="<?= Response::url('icon-128.png') ?>">
+    <link rel="apple-touch-icon" sizes="144x144" href="<?= Response::url('icon-144.png') ?>">
+    <link rel="apple-touch-icon" sizes="152x152" href="<?= Response::url('icon-152.png') ?>">
+    <link rel="apple-touch-icon" sizes="384x384" href="<?= Response::url('icon-384.png') ?>">
     
     <!-- CSRF Token -->
     <?= CSRF::meta() ?>
