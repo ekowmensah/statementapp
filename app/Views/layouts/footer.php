@@ -194,6 +194,20 @@
             });
         }
 
+        // Update header date dynamically
+        function updateHeaderDate() {
+            const dateElement = document.getElementById('current-date');
+            if (dateElement) {
+                const now = new Date();
+                const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                dateElement.textContent = now.toLocaleDateString('en-US', options);
+            }
+        }
+
+        // Update date immediately and then every minute
+        updateHeaderDate();
+        setInterval(updateHeaderDate, 60000); // Update every minute
+
     </script>
 
     <!-- Page-specific scripts -->

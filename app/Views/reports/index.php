@@ -909,7 +909,7 @@ function updateDetailedAnalysis(reportData) {
 
 function generateCAAnalysisCards(reportData) {
     const growth = reportData.growth || { trend: 'stable', rate: 0, recent_average: 0, earlier_average: 0 };
-    const benchmarks = reportData.benchmarks || { profitability_ratio: 0, performance_rating: 'unknown' };
+    const benchmarks = reportData.benchmarks || { profitability_ratio: 0, performance_rating: 'unknown', average_deal_size: 0 };
     
     return `
         <div class="col-md-6">
@@ -969,7 +969,7 @@ function generateCAAnalysisCards(reportData) {
                     <hr>
                     <div class="text-center">
                         <span class="badge bg-${benchmarks.performance_rating === 'excellent' ? 'success' : benchmarks.performance_rating === 'good' ? 'warning' : 'danger'} fs-6">
-                            ${benchmarks.performance_rating.replace('_', ' ').toUpperCase()}
+                            ${(benchmarks.performance_rating || 'unknown').replace('_', ' ').toUpperCase()}
                         </span>
                     </div>
                 </div>
@@ -979,8 +979,8 @@ function generateCAAnalysisCards(reportData) {
 }
 
 function generateGAAnalysisCards(reportData) {
-    const efficiency = reportData.efficiency || { efficiency_ratio: 0, cost_per_transaction: 0, total_expenses: 0 };
-    const cost_control = reportData.cost_control || { budget_utilization: 0, avg_spend: 0, control_status: 'unknown' };
+    const efficiency = reportData.efficiency || { efficiency_ratio: 0, cost_per_transaction: 0, total_expenses: 0, efficiency_rating: 'unknown' };
+    const cost_control = reportData.cost_control || { budget_utilization: 0, avg_spend: 0, control_status: 'unknown', average_spend: 0 };
     
     return `
         <div class="col-md-6">
@@ -1006,7 +1006,7 @@ function generateGAAnalysisCards(reportData) {
                     <hr>
                     <div class="text-center">
                         <span class="badge bg-${efficiency.efficiency_rating === 'excellent' ? 'success' : efficiency.efficiency_rating === 'good' ? 'warning' : 'danger'} fs-6">
-                            ${efficiency.efficiency_rating.replace('_', ' ').toUpperCase()}
+                            ${(efficiency.efficiency_rating || 'unknown').replace('_', ' ').toUpperCase()}
                         </span>
                     </div>
                 </div>
@@ -1035,7 +1035,7 @@ function generateGAAnalysisCards(reportData) {
                     <hr>
                     <div class="text-center">
                         <span class="badge bg-${cost_control.control_status === 'under_control' ? 'success' : cost_control.control_status === 'monitor' ? 'warning' : 'danger'} fs-6">
-                            ${cost_control.control_status.replace('_', ' ').toUpperCase()}
+                            ${(cost_control.control_status || 'unknown').replace('_', ' ').toUpperCase()}
                         </span>
                     </div>
                 </div>
@@ -1101,7 +1101,7 @@ function generateREAnalysisCards(reportData) {
                     <hr>
                     <div class="text-center">
                         <span class="badge bg-${performance.status === 'excellent' ? 'success' : performance.status === 'good' ? 'warning' : 'danger'} fs-6">
-                            ${performance.status.replace('_', ' ').toUpperCase()}
+                            ${(performance.status || 'unknown').replace('_', ' ').toUpperCase()}
                         </span>
                     </div>
                 </div>
@@ -1111,7 +1111,7 @@ function generateREAnalysisCards(reportData) {
 }
 
 function generateJEAnalysisCards(reportData) {
-    const allocation = reportData.allocation || { allocation_ratio: 0, total_allocation: 0, efficiency_score: 0 };
+    const allocation = reportData.allocation || { allocation_ratio: 0, total_allocation: 0, efficiency_score: 0, allocation_efficiency: 'unknown', average_allocation: 0 };
     const optimization = reportData.optimization || { optimization_potential: 'unknown', stability_score: 0, volatility: 0 };
     
     return `
@@ -1138,7 +1138,7 @@ function generateJEAnalysisCards(reportData) {
                     <hr>
                     <div class="text-center">
                         <span class="badge bg-${allocation.allocation_efficiency === 'efficient' ? 'success' : allocation.allocation_efficiency === 'moderate' ? 'warning' : 'danger'} fs-6">
-                            ${allocation.allocation_efficiency.replace('_', ' ').toUpperCase()}
+                            ${(allocation.allocation_efficiency || 'unknown').replace('_', ' ').toUpperCase()}
                         </span>
                     </div>
                 </div>
@@ -1167,7 +1167,7 @@ function generateJEAnalysisCards(reportData) {
                     <hr>
                     <div class="text-center">
                         <span class="badge bg-${optimization.optimization_potential === 'high' ? 'danger' : optimization.optimization_potential === 'moderate' ? 'warning' : 'success'} fs-6">
-                            ${optimization.optimization_potential.toUpperCase()} POTENTIAL
+                            ${(optimization.optimization_potential || 'unknown').toUpperCase()} POTENTIAL
                         </span>
                     </div>
                 </div>

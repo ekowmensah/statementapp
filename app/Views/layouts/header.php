@@ -340,7 +340,7 @@
                     <div class="nav-item">
                         <span class="nav-link">
                             <i class="bi bi-calendar-date"></i>
-                            <?= date('F j, Y') ?>
+                            <span id="current-date"><?= date('F j, Y') ?></span>
                         </span>
                     </div>
                 </div>
