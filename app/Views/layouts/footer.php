@@ -238,6 +238,7 @@
         let deferredPrompt;
         let installButton;
         let installPromptShown = false;
+        let userEngaged = false;
 
         window.addEventListener('beforeinstallprompt', (e) => {
             console.log('PWA: Install prompt available');
@@ -247,11 +248,11 @@
             // Show install button immediately
             showInstallButton();
             
-            // Also show a notification about the install option
+            // Show notification immediately for faster UX
             if (!installPromptShown) {
                 setTimeout(() => {
                     showInstallNotification();
-                }, 2000);
+                }, 500); // Reduced from 2000ms to 500ms
                 installPromptShown = true;
             }
         });
@@ -269,6 +270,31 @@
                 window.navigator.standalone === true) {
                 console.log('PWA: App is running in standalone mode');
                 hideInstallButton();
+            } else {
+                // Track user engagement for faster prompt triggering
+                const engagementEvents = ['click', 'scroll', 'keydown', 'touchstart'];
+                const trackEngagement = () => {
+                    if (!userEngaged) {
+                        userEngaged = true;
+                        console.log('PWA: User engagement detected');
+                        // Remove listeners after first engagement
+                        engagementEvents.forEach(event => {
+                            document.removeEventListener(event, trackEngagement);
+                        });
+                    }
+                };
+                
+                engagementEvents.forEach(event => {
+                    document.addEventListener(event, trackEngagement, { once: true });
+                });
+                
+                // If no install prompt after 2 seconds, show manual install option
+                setTimeout(() => {
+                    if (!deferredPrompt && !installButton) {
+                        console.log('PWA: No install prompt detected, showing manual install option');
+                        showManualInstallOption();
+                    }
+                }, 2000); // Reduced from 3000ms to 2000ms
             }
         });
 
@@ -276,44 +302,99 @@
             // Create install button if it doesn't exist
             if (!installButton) {
                 installButton = document.createElement('button');
-                installButton.innerHTML = '<i class="bi bi-download me-2"></i>Install App';
-                installButton.className = 'btn btn-primary btn-sm position-fixed';
+                installButton.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-download me-2"></i>
+                        <span>Install App</span>
+                        <div class="install-shine"></div>
+                    </div>
+                `;
+                installButton.className = 'btn position-fixed install-btn';
                 installButton.style.cssText = `
                     bottom: 20px;
                     right: 20px;
                     z-index: 1050;
-                    border-radius: 25px;
+                    border-radius: 24px;
                     padding: 0.75rem 1.25rem;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-                    backdrop-filter: blur(10px);
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    border: none;
-                    color: white;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                    background: #ffffff;
+                    border: 1px solid #e0e0e0;
+                    color: #667eea;
                     font-weight: 500;
-                    animation: pulse 2s infinite;
+                    font-size: 0.875rem;
+                    letter-spacing: 0.2px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    animation: cleanPulse 4s ease-in-out infinite;
+                    position: relative;
+                    overflow: hidden;
                 `;
                 
-                // Add pulse animation
+                // Add clean button styles
                 const style = document.createElement('style');
                 style.textContent = `
-                    @keyframes pulse {
-                        0% { transform: scale(1); }
-                        50% { transform: scale(1.05); }
-                        100% { transform: scale(1); }
+                    @keyframes cleanPulse {
+                        0%, 100% { 
+                            transform: scale(1);
+                            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                        }
+                        50% { 
+                            transform: scale(1.02);
+                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                        }
+                    }
+                    
+                    .install-btn:hover {
+                        background: #667eea !important;
+                        color: white !important;
+                        border-color: #667eea !important;
+                        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3) !important;
+                        animation: none !important;
+                    }
+                    
+                    .install-btn:active {
+                        transform: scale(0.98) !important;
+                        transition: all 0.1s ease !important;
+                    }
+                    
+                    .install-btn i {
+                        font-size: 0.875rem;
+                    }
+                    
+                    .install-btn span {
+                        font-weight: 500;
+                    }
+                    
+                    @keyframes slideIn {
+                        from {
+                            transform: translateX(100%);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
                     }
                 `;
                 document.head.appendChild(style);
                 
-                installButton.addEventListener('click', installApp);
+                installButton.addEventListener('click', attemptDirectInstall);
+                installButton.addEventListener('mouseenter', () => {
+                    installButton.style.animation = 'none';
+                });
+                installButton.addEventListener('mouseleave', () => {
+                    installButton.style.animation = 'cleanPulse 4s ease-in-out infinite';
+                });
+                
                 document.body.appendChild(installButton);
                 
-                // Reduce opacity after 15 seconds but keep visible
+                // Reduce intensity after 8 seconds but keep visible
                 setTimeout(() => {
                     if (installButton && installButton.parentNode) {
-                        installButton.style.opacity = '0.8';
-                        installButton.style.animation = 'none';
+                        installButton.style.opacity = '0.95';
+                        installButton.style.animation = 'cleanPulse 6s ease-in-out infinite';
                     }
-                }, 15000);
+                }, 8000);
             }
         }
 
@@ -375,6 +456,243 @@
                     notification.remove();
                 }
             }, 8000);
+        }
+
+        function showManualInstallOption() {
+            // Create manual install button that tries to trigger native install
+            if (!installButton) {
+                installButton = document.createElement('button');
+                installButton.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-download me-2"></i>
+                        <span>Install App</span>
+                    </div>
+                `;
+                installButton.className = 'btn position-fixed install-btn manual-install';
+                installButton.style.cssText = `
+                    bottom: 20px;
+                    right: 20px;
+                    z-index: 1050;
+                    border-radius: 24px;
+                    padding: 0.75rem 1.25rem;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                    background: #ffffff;
+                    border: 1px solid #e0e0e0;
+                    color: #667eea;
+                    font-weight: 500;
+                    font-size: 0.875rem;
+                    letter-spacing: 0.2px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    animation: cleanPulse 4s ease-in-out infinite;
+                    position: relative;
+                    overflow: hidden;
+                `;
+                
+                // Manual install uses same clean styles
+                const manualStyle = document.createElement('style');
+                manualStyle.textContent = `
+                    .manual-install:hover {
+                        background: #667eea !important;
+                        color: white !important;
+                        border-color: #667eea !important;
+                        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3) !important;
+                        animation: none !important;
+                    }
+                    
+                    .manual-install:active {
+                        transform: scale(0.98) !important;
+                        transition: all 0.1s ease !important;
+                    }
+                `;
+                document.head.appendChild(manualStyle);
+                
+                // Try to trigger native install or show instructions
+                installButton.addEventListener('click', attemptDirectInstall);
+                installButton.addEventListener('mouseenter', () => {
+                    installButton.style.animation = 'none';
+                });
+                installButton.addEventListener('mouseleave', () => {
+                    installButton.style.animation = 'cleanPulse 4s ease-in-out infinite';
+                });
+                
+                document.body.appendChild(installButton);
+            }
+        }
+
+        function attemptDirectInstall() {
+            console.log('PWA: Attempting direct install...');
+            
+            // First try: Use deferred prompt if available
+            if (deferredPrompt) {
+                console.log('PWA: Using deferred prompt');
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('PWA: User accepted the install prompt');
+                        hideInstallButton();
+                    } else {
+                        console.log('PWA: User dismissed the install prompt');
+                    }
+                    deferredPrompt = null;
+                });
+                return;
+            }
+            
+            // Second try: Check if browser supports install prompt
+            if ('getInstalledRelatedApps' in navigator) {
+                navigator.getInstalledRelatedApps().then((relatedApps) => {
+                    if (relatedApps.length === 0) {
+                        // App not installed, try to trigger install
+                        triggerNativeInstall();
+                    } else {
+                        showAlreadyInstalledMessage();
+                    }
+                });
+            } else {
+                // Third try: Platform-specific install attempts
+                triggerNativeInstall();
+            }
+        }
+
+        function triggerNativeInstall() {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isAndroid = /Android/.test(navigator.userAgent);
+            const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+            
+            console.log('PWA: Triggering native install for platform:', { isIOS, isAndroid, isSafari });
+            
+            if (isIOS && isSafari) {
+                // iOS Safari - show specific instructions
+                showIOSInstallPrompt();
+            } else if (isAndroid) {
+                // Android - try to trigger Chrome install prompt
+                if ('BeforeInstallPromptEvent' in window) {
+                    // Modern Android browsers
+                    showAndroidInstallPrompt();
+                } else {
+                    // Fallback for older Android browsers
+                    showAndroidInstallPrompt();
+                }
+            } else {
+                // Desktop browsers
+                showDesktopInstallPrompt();
+            }
+        }
+
+        function showIOSInstallPrompt() {
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-primary alert-dismissible fade show position-fixed';
+            notification.style.cssText = `
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                min-width: 320px;
+                max-width: 400px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                border-radius: 10px;
+                animation: slideIn 0.3s ease-out;
+            `;
+            
+            notification.innerHTML = `
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-phone me-2 mt-1" style="color: #007AFF;"></i>
+                    <div class="flex-grow-1">
+                        <strong>Install on iPhone</strong><br>
+                        <small>1. Tap the Share button <i class="bi bi-share"></i> below<br>
+                        2. Scroll down and tap "Add to Home Screen"<br>
+                        3. Tap "Add" to install the app</small>
+                    </div>
+                    <button type="button" class="btn-close" data-coreui-dismiss="alert"></button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 15 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 15000);
+        }
+
+        function showAndroidInstallPrompt() {
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-success alert-dismissible fade show position-fixed';
+            notification.style.cssText = `
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                min-width: 320px;
+                max-width: 400px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                border-radius: 10px;
+                animation: slideIn 0.3s ease-out;
+            `;
+            
+            notification.innerHTML = `
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-android2 me-2 mt-1" style="color: #3DDC84;"></i>
+                    <div class="flex-grow-1">
+                        <strong>Install on Android</strong><br>
+                        <small>1. Tap the menu (⋮) in your browser<br>
+                        2. Look for "Add to Home screen" or "Install app"<br>
+                        3. Tap "Install" to add the app</small>
+                    </div>
+                    <button type="button" class="btn-close" data-coreui-dismiss="alert"></button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 15 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 15000);
+        }
+
+        function showDesktopInstallPrompt() {
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-info alert-dismissible fade show position-fixed';
+            notification.style.cssText = `
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                min-width: 320px;
+                max-width: 400px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                border-radius: 10px;
+                animation: slideIn 0.3s ease-out;
+            `;
+            
+            notification.innerHTML = `
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-laptop me-2 mt-1" style="color: #0078D4;"></i>
+                    <div class="flex-grow-1">
+                        <strong>Install on Desktop</strong><br>
+                        <small>1. Look for the install icon <i class="bi bi-plus-square"></i> in your address bar<br>
+                        2. Or use browser menu → "Install Daily Statement App"<br>
+                        3. Click "Install" to add the app</small>
+                    </div>
+                    <button type="button" class="btn-close" data-coreui-dismiss="alert"></button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 15 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 15000);
+        }
+
+        function showAlreadyInstalledMessage() {
+            FormUtils.showSuccess('Daily Statement App is already installed on your device!');
         }
 
         function showUpdateAvailable() {
