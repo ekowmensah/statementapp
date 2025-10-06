@@ -276,11 +276,24 @@
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
+                padding: 0.5rem 1rem;
             }
             
             /* Add Transaction button styling */
             .btn-add-transaction {
                 white-space: nowrap;
+            }
+            
+            /* Ensure mobile buttons don't overlap */
+            .header-toggler {
+                flex-shrink: 0;
+                margin-right: 0.5rem;
+            }
+            
+            /* Mobile header right section */
+            .d-md-none.d-flex {
+                flex-shrink: 0;
+                margin-left: auto;
             }
             
             /* Mobile spacing */
@@ -460,8 +473,9 @@
                 <!-- Mobile Add Transaction Button and Language Selector -->
                 <div class="d-md-none d-flex align-items-center gap-2">
                     <div id="google_translate_element_mobile"></div>
-                    <a href="<?= Response::url('daily/create') ?>" class="btn btn-primary btn-sm btn-add-transaction">
+                    <a href="<?= Response::url('daily/create') ?>" class="btn btn-primary btn-sm btn-add-transaction" title="Add Transaction">
                         <i class="bi bi-plus-circle"></i>
+                        <span class="d-none d-sm-inline ms-1">Add</span>
                     </a>
                 </div>
                 
@@ -480,7 +494,8 @@
                         <div id="google_translate_element"></div>
                     </div>
                     
-                    <div class="nav-item">
+                    <!-- Desktop Add Transaction Button -->
+                    <div class="nav-item d-none d-md-block">
                         <a href="<?= Response::url('daily/create') ?>" class="btn btn-primary btn-sm me-3 btn-add-transaction">
                             <i class="bi bi-plus-circle me-1"></i>
                             Add Transaction
