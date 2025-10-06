@@ -257,6 +257,47 @@
             }
         });
 
+        // Additional event listener for Chrome Android
+        document.addEventListener('DOMContentLoaded', function() {
+            // Force check for install prompt availability after DOM load
+            setTimeout(() => {
+                if (!deferredPrompt) {
+                    console.log('PWA: No deferred prompt detected, checking for Chrome Android');
+                    const isChrome = /Chrome/.test(navigator.userAgent) && !/Edg/.test(navigator.userAgent);
+                    const isAndroid = /Android/.test(navigator.userAgent);
+                    
+                    if (isChrome && isAndroid) {
+                        console.log('PWA: Chrome Android detected, setting up enhanced install detection');
+                        // Set up additional listeners for Chrome Android
+                        setupChromeAndroidInstall();
+                    }
+                }
+            }, 1000);
+        });
+
+        function setupChromeAndroidInstall() {
+            // Create a more aggressive install prompt detection for Chrome Android
+            let installPromptAttempts = 0;
+            const maxAttempts = 3;
+            
+            const checkForInstallPrompt = () => {
+                installPromptAttempts++;
+                console.log(`PWA: Checking for install prompt (attempt ${installPromptAttempts})`);
+                
+                if (!deferredPrompt && installPromptAttempts < maxAttempts) {
+                    // Try to trigger the beforeinstallprompt event
+                    setTimeout(checkForInstallPrompt, 2000);
+                } else if (!deferredPrompt && installPromptAttempts >= maxAttempts) {
+                    console.log('PWA: Max attempts reached, showing manual install option');
+                    if (!installButton) {
+                        showManualInstallOption();
+                    }
+                }
+            };
+            
+            checkForInstallPrompt();
+        }
+
         window.addEventListener('appinstalled', (e) => {
             console.log('PWA: App installed successfully');
             hideInstallButton();
@@ -523,7 +564,7 @@
         function attemptDirectInstall() {
             console.log('PWA: Attempting direct install...');
             
-            // First try: Use deferred prompt if available
+            // First try: Use deferred prompt if available (Chrome, Edge, etc.)
             if (deferredPrompt) {
                 console.log('PWA: Using deferred prompt');
                 deferredPrompt.prompt();
@@ -539,7 +580,18 @@
                 return;
             }
             
-            // Second try: Check if browser supports install prompt
+            // Second try: Force trigger install prompt for Chrome/Android
+            const isChrome = /Chrome/.test(navigator.userAgent) && !/Edg/.test(navigator.userAgent);
+            const isAndroid = /Android/.test(navigator.userAgent);
+            
+            if (isChrome && isAndroid) {
+                console.log('PWA: Android Chrome detected, attempting to force install prompt');
+                // Try to manually trigger the beforeinstallprompt event
+                forceInstallPrompt();
+                return;
+            }
+            
+            // Third try: Check if browser supports install prompt
             if ('getInstalledRelatedApps' in navigator) {
                 navigator.getInstalledRelatedApps().then((relatedApps) => {
                     if (relatedApps.length === 0) {
@@ -550,9 +602,126 @@
                     }
                 });
             } else {
-                // Third try: Platform-specific install attempts
+                // Fourth try: Platform-specific install attempts
                 triggerNativeInstall();
             }
+        }
+
+        function forceInstallPrompt() {
+            // Try to force the install prompt on Android Chrome
+            console.log('PWA: Forcing install prompt for Android Chrome');
+            
+            // First, check if PWA criteria are met
+            if (checkPWACriteria()) {
+                console.log('PWA: PWA criteria met, attempting to trigger install');
+                
+                // Try multiple methods to trigger the install prompt
+                const methods = [
+                    () => {
+                        // Method 1: Try to dispatch a custom beforeinstallprompt event
+                        const event = new Event('beforeinstallprompt');
+                        event.preventDefault = () => {};
+                        event.prompt = () => Promise.resolve();
+                        event.userChoice = Promise.resolve({ outcome: 'accepted' });
+                        window.dispatchEvent(event);
+                    },
+                    () => {
+                        // Method 2: Check for Chrome's install API
+                        if ('getInstalledRelatedApps' in navigator) {
+                            navigator.getInstalledRelatedApps().then(apps => {
+                                if (apps.length === 0) {
+                                    showAndroidChromeDirectInstall();
+                                }
+                            });
+                        } else {
+                            showAndroidChromeDirectInstall();
+                        }
+                    },
+                    () => {
+                        // Method 3: Direct guidance
+                        showAndroidChromeDirectInstall();
+                    }
+                ];
+                
+                // Try each method with delays
+                methods.forEach((method, index) => {
+                    setTimeout(method, index * 500);
+                });
+            } else {
+                console.log('PWA: PWA criteria not fully met');
+                showAndroidChromeDirectInstall();
+            }
+        }
+
+        function checkPWACriteria() {
+            // Check if basic PWA criteria are met
+            const hasManifest = document.querySelector('link[rel="manifest"]');
+            const hasServiceWorker = 'serviceWorker' in navigator;
+            const isHTTPS = location.protocol === 'https:' || location.hostname === 'localhost';
+            
+            console.log('PWA: Criteria check:', {
+                hasManifest: !!hasManifest,
+                hasServiceWorker,
+                isHTTPS
+            });
+            
+            return hasManifest && hasServiceWorker && isHTTPS;
+        }
+
+        function showAndroidChromeDirectInstall() {
+            // First, try one more time to trigger the native prompt
+            if (deferredPrompt) {
+                console.log('PWA: Found deferred prompt, triggering it now');
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('PWA: User accepted the install prompt');
+                        hideInstallButton();
+                    } else {
+                        console.log('PWA: User dismissed the install prompt');
+                    }
+                    deferredPrompt = null;
+                });
+                return;
+            }
+            
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-warning alert-dismissible fade show position-fixed';
+            notification.style.cssText = `
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                min-width: 320px;
+                max-width: 400px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                border-radius: 10px;
+                animation: slideIn 0.3s ease-out;
+                border-left: 4px solid #ffc107;
+            `;
+            
+            notification.innerHTML = `
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-exclamation-triangle me-2 mt-1" style="color: #856404; font-size: 1.2rem;"></i>
+                    <div class="flex-grow-1">
+                        <strong>Install Not Available</strong><br>
+                        <small style="color: #856404;">
+                            Chrome hasn't shown the install prompt yet.<br>
+                            <strong>Try:</strong> Refresh the page or visit more pages<br>
+                            <strong>Or:</strong> Menu (⋮) → "Add to Home screen"
+                        </small>
+                    </div>
+                    <button type="button" class="btn-close" data-coreui-dismiss="alert"></button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 12 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 12000);
         }
 
         function triggerNativeInstall() {
