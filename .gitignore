@@ -2,3 +2,5 @@ sql/user_management_setup.sql
 CURRENCY_AND_DATE_CHANGES.md
 sql/add_companies_table.sql
 menswebg_statementapp.sql
+public/pwa-test.html
+public/index.html

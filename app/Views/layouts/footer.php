@@ -186,9 +186,18 @@
         // PWA Service Worker Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
+                // Determine the correct service worker path
+                const baseUrl = window.AppConfig?.baseUrl || '';
+                const swPath = baseUrl + '/sw.js?v=2.1.0';
+                
+                console.log('PWA: Registering service worker at:', swPath);
+                
+                navigator.serviceWorker.register(swPath)
                     .then((registration) => {
                         console.log('PWA: Service Worker registered successfully:', registration);
+                        
+                        // Force update check
+                        registration.update();
                         
                         // Check for updates
                         registration.addEventListener('updatefound', () => {
@@ -200,9 +209,27 @@
                                 }
                             });
                         });
+                        
+                        // Listen for messages from SW
+                        navigator.serviceWorker.addEventListener('message', (event) => {
+                            if (event.data && event.data.type === 'SW_ACTIVATED') {
+                                console.log('PWA: Service Worker activated, version:', event.data.version);
+                            }
+                        });
                     })
                     .catch((error) => {
                         console.log('PWA: Service Worker registration failed:', error);
+                        console.log('PWA: Trying fallback registration...');
+                        
+                        // Fallback: try relative path
+                        navigator.serviceWorker.register('./sw.js?v=2.1.0')
+                            .then((registration) => {
+                                console.log('PWA: Service Worker registered successfully (fallback):', registration);
+                                registration.update();
+                            })
+                            .catch((fallbackError) => {
+                                console.log('PWA: Fallback service worker registration also failed:', fallbackError);
+                            });
                     });
             });
         }
@@ -210,18 +237,39 @@
         // PWA Install Prompt
         let deferredPrompt;
         let installButton;
+        let installPromptShown = false;
 
         window.addEventListener('beforeinstallprompt', (e) => {
             console.log('PWA: Install prompt available');
             e.preventDefault();
             deferredPrompt = e;
+            
+            // Show install button immediately
             showInstallButton();
+            
+            // Also show a notification about the install option
+            if (!installPromptShown) {
+                setTimeout(() => {
+                    showInstallNotification();
+                }, 2000);
+                installPromptShown = true;
+            }
         });
 
         window.addEventListener('appinstalled', (e) => {
             console.log('PWA: App installed successfully');
             hideInstallButton();
             showInstallSuccess();
+            deferredPrompt = null;
+        });
+
+        // Check if app is already installed
+        window.addEventListener('load', () => {
+            if (window.matchMedia('(display-mode: standalone)').matches || 
+                window.navigator.standalone === true) {
+                console.log('PWA: App is running in standalone mode');
+                hideInstallButton();
+            }
         });
 
         function showInstallButton() {
@@ -229,27 +277,43 @@
             if (!installButton) {
                 installButton = document.createElement('button');
                 installButton.innerHTML = '<i class="bi bi-download me-2"></i>Install App';
-                installButton.className = 'btn btn-outline-primary btn-sm position-fixed';
+                installButton.className = 'btn btn-primary btn-sm position-fixed';
                 installButton.style.cssText = `
                     bottom: 20px;
                     right: 20px;
                     z-index: 1050;
                     border-radius: 25px;
-                    padding: 0.5rem 1rem;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    padding: 0.75rem 1.25rem;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
                     backdrop-filter: blur(10px);
-                    background: rgba(255,255,255,0.9);
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    border: none;
+                    color: white;
+                    font-weight: 500;
+                    animation: pulse 2s infinite;
                 `;
+                
+                // Add pulse animation
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes pulse {
+                        0% { transform: scale(1); }
+                        50% { transform: scale(1.05); }
+                        100% { transform: scale(1); }
+                    }
+                `;
+                document.head.appendChild(style);
                 
                 installButton.addEventListener('click', installApp);
                 document.body.appendChild(installButton);
                 
-                // Auto-hide after 10 seconds
+                // Reduce opacity after 15 seconds but keep visible
                 setTimeout(() => {
                     if (installButton && installButton.parentNode) {
-                        installButton.style.opacity = '0.7';
+                        installButton.style.opacity = '0.8';
+                        installButton.style.animation = 'none';
                     }
-                }, 10000);
+                }, 15000);
             }
         }
 
@@ -277,6 +341,40 @@
 
         function showInstallSuccess() {
             FormUtils.showSuccess('Daily Statement App installed successfully! You can now access it from your home screen.');
+        }
+
+        function showInstallNotification() {
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-info alert-dismissible fade show position-fixed';
+            notification.style.cssText = `
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                min-width: 320px;
+                max-width: 400px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                border-radius: 10px;
+            `;
+            
+            notification.innerHTML = `
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-phone me-2 mt-1"></i>
+                    <div class="flex-grow-1">
+                        <strong>Install Daily Statement App</strong><br>
+                        <small>Add to your home screen for quick access and offline use!</small>
+                    </div>
+                    <button type="button" class="btn-close" data-coreui-dismiss="alert"></button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 8 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 8000);
         }
 
         function showUpdateAvailable() {

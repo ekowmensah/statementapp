@@ -1,8 +1,9 @@
 // Service Worker for Daily Statement App PWA
-// Version: 1.0.0
-// No caching strategy - always fetch from network
+// Version: 2.1.0
+// Enhanced for better PWA install experience
 
-const CACHE_NAME = 'daily-statement-v1';
+const CACHE_NAME = 'daily-statement-v2.1.0';
+const STATIC_CACHE = 'static-v2.1.0';
 
 // Install event - no caching
 self.addEventListener('install', (event) => {
@@ -20,8 +21,8 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          // Delete any existing caches
-          if (cacheName !== CACHE_NAME) {
+          // Delete any existing caches that don't match current version
+          if (cacheName !== CACHE_NAME && cacheName !== STATIC_CACHE) {
             console.log('Service Worker: Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
@@ -30,6 +31,16 @@ self.addEventListener('activate', (event) => {
     }).then(() => {
       // Take control of all pages immediately
       return self.clients.claim();
+    }).then(() => {
+      // Notify all clients that SW is ready
+      return self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'SW_ACTIVATED',
+            version: '2.1.0'
+          });
+        });
+      });
     })
   );
 });
