@@ -143,7 +143,7 @@ function appUrl($path) {
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
             <div class="mb-3 mb-md-0">
                 <h1 class="mb-0 text-primary">📊 Financial Analytics Dashboard</h1>
-                <p class="text-muted mb-0 fs-5">Comprehensive analysis for <?= htmlspecialchars($data['month_name']) ?></p>
+               <!-- <p class="text-muted mb-0 fs-5">Comprehensive analysis for <?= htmlspecialchars($data['month_name']) ?></p> -->
             </div>
             <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-md-auto">
                 <select class="form-select" id="monthSelector">
