@@ -836,7 +836,7 @@ function showError(message) {
 
 function formatMoney(amount) {
     if (typeof amount !== 'number') return amount;
-    return '$' + amount.toLocaleString('en-US', {
+    return 'GH₵' + amount.toLocaleString('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });

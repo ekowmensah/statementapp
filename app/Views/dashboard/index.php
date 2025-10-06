@@ -184,7 +184,7 @@ function appUrl($path) {
                     </div>
                     <i class="bi bi-cash-stack fs-3 opacity-75"></i>
                 </div>
-                <h2 class="kpi-value"><?= $data['kpis']['mtd_ca_formatted'] ?? '$0.00' ?></h2>
+                <h2 class="kpi-value"><?= $data['kpis']['mtd_ca_formatted'] ?? 'GH₵0.00' ?></h2>
                 <div class="kpi-change">
                     <?php 
                     $caChange = $data['kpis']['ca_change'] ?? 0;
@@ -207,7 +207,7 @@ function appUrl($path) {
                     </div>
                     <i class="bi bi-graph-up fs-3 opacity-75"></i>
                 </div>
-                <h2 class="kpi-value"><?= $data['kpis']['mtd_fi_formatted'] ?? '$0.00' ?></h2>
+                <h2 class="kpi-value"><?= $data['kpis']['mtd_fi_formatted'] ?? 'GH₵0.00' ?></h2>
                 <div class="kpi-change">
                     <?php 
                     $fiChange = $data['kpis']['fi_change'] ?? 0;
@@ -230,7 +230,7 @@ function appUrl($path) {
                     </div>
                     <i class="bi bi-calendar-check fs-3 opacity-75"></i>
                 </div>
-                <h2 class="kpi-value"><?= $data['kpis']['ytd_fi_formatted'] ?? '$0.00' ?></h2>
+                <h2 class="kpi-value"><?= $data['kpis']['ytd_fi_formatted'] ?? 'GH₵0.00' ?></h2>
                 <div class="kpi-change">
                     <i class="bi bi-info-circle"></i>
                     <span id="ytd-transaction-count"><?= $data['kpis']['ytd_transaction_count'] ?? 0 ?> transactions</span>
@@ -275,7 +275,7 @@ function appUrl($path) {
               <div class="metric-label">Avg Transaction</div>
               <div class="metric-value" id="metric-avg-transaction"
                    aria-label="Average Transaction">
-                <?= $data['performance_metrics']['avg_transaction_size'] ?? '$0' ?>
+                <?= $data['performance_metrics']['avg_transaction_size'] ?? 'GH₵0' ?>
               </div>
             </div>
           </div>
@@ -285,7 +285,7 @@ function appUrl($path) {
               <div class="metric-label">Best Day</div>
               <div class="metric-value" id="metric-best-day"
                    aria-label="Best Day">
-                <?= $data['performance_metrics']['best_day'] ?? '$0' ?>
+                <?= $data['performance_metrics']['best_day'] ?? 'GH₵0' ?>
               </div>
             </div>
           </div>

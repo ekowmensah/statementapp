@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Sample calculation with $1000 CA and $50 GA
+        // Sample calculation with GH₵1000 CA and GH₵50 GA
         const sampleCA = 1000;
         const sampleGA = 50;
         const sampleJE = 25;
@@ -180,32 +180,32 @@ document.addEventListener('DOMContentLoaded', function() {
         previewContent.innerHTML = `
             <div class="mb-3">
                 <h6 class="text-primary">Sample Calculation</h6>
-                <small class="text-muted">CA: $1,000 | GA: $50 | JE: $25</small>
+                <small class="text-muted">CA: GH₵1,000 | GA: GH₵50 | JE: GH₵25</small>
             </div>
             
             <div class="d-flex justify-content-between mb-2">
                 <span>AG1 (${ag1.toFixed(2)}%):</span>
-                <span class="fw-semibold">$${ag1Amount.toFixed(2)}</span>
+                <span class="fw-semibold">GH₵${ag1Amount.toFixed(2)}</span>
             </div>
             <div class="d-flex justify-content-between mb-2">
                 <span>AV1:</span>
-                <span>$${av1.toFixed(2)}</span>
+                <span>GH₵${av1.toFixed(2)}</span>
             </div>
             <div class="d-flex justify-content-between mb-2">
                 <span>AG2 (${ag2.toFixed(2)}%):</span>
-                <span class="fw-semibold">$${ag2Amount.toFixed(2)}</span>
+                <span class="fw-semibold">GH₵${ag2Amount.toFixed(2)}</span>
             </div>
             <div class="d-flex justify-content-between mb-2">
                 <span>AV2:</span>
-                <span>$${av2.toFixed(2)}</span>
+                <span>GH₵${av2.toFixed(2)}</span>
             </div>
             <div class="d-flex justify-content-between mb-2">
                 <span>RE:</span>
-                <span>$${re.toFixed(2)}</span>
+                <span>GH₵${re.toFixed(2)}</span>
             </div>
             <div class="d-flex justify-content-between border-top pt-2">
                 <span class="fw-bold">FI (Final):</span>
-                <span class="fw-bold text-success">$${fi.toFixed(2)}</span>
+                <span class="fw-bold text-success">GH₵${fi.toFixed(2)}</span>
             </div>
             
             ${effectiveDate ? `
