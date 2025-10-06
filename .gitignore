@@ -4,3 +4,6 @@ sql/add_companies_table.sql
 menswebg_statementapp.sql
 public/pwa-test.html
 public/index.html
+sql/allow_multiple_transactions_per_date_no_use.sql
+sql/allow_multiple_transactions_per_date.sql
+MULTIPLE_TRANSACTIONS_DEPLOYMENT.md

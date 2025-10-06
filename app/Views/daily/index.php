@@ -288,14 +288,46 @@ function appUrl($path) {
                             </tr>
                         </thead>
                         <tbody>
+                            <?php 
+                            $currentDate = null;
+                            $dateTransactionCount = [];
+                            
+                            // Group transactions by date to show counts
+                            foreach ($data['transactions'] as $txn) {
+                                $date = $txn['txn_date'];
+                                if (!isset($dateTransactionCount[$date])) {
+                                    $dateTransactionCount[$date] = 0;
+                                }
+                                $dateTransactionCount[$date]++;
+                            }
+                            ?>
+                            
                             <?php foreach ($data['transactions'] as $txn): ?>
                             <tr>
                                 <td>
-                                    <a href="<?= appUrl('daily/show?id=' . $txn['id']) ?>" class="text-decoration-none fw-semibold">
-                                        <?= date('M j, Y', strtotime($txn['txn_date'])) ?>
-                                    </a>
-                                    <br>
-                                    <small class="text-muted"><?= date('l', strtotime($txn['txn_date'])) ?></small>
+                                    <div class="d-flex align-items-center">
+                                        <div>
+                                            <a href="<?= appUrl('daily/show?id=' . $txn['id']) ?>" class="text-decoration-none fw-semibold">
+                                                <?= date('M j, Y', strtotime($txn['txn_date'])) ?>
+                                            </a>
+                                            <br>
+                                            <small class="text-muted"><?= date('l', strtotime($txn['txn_date'])) ?></small>
+                                        </div>
+                                        <?php if ($dateTransactionCount[$txn['txn_date']] > 1): ?>
+                                        <div class="ms-2">
+                                            <a href="<?= appUrl('daily/show-by-date?date=' . $txn['txn_date']) ?>" 
+                                               class="badge bg-info text-decoration-none" 
+                                               title="<?= $dateTransactionCount[$txn['txn_date']] ?> transactions on this date">
+                                                <?= $dateTransactionCount[$txn['txn_date']] ?>x
+                                            </a>
+                                        </div>
+                                        <?php endif; ?>
+                                        <?php if (isset($txn['sequence_number']) && $txn['sequence_number'] > 1): ?>
+                                        <div class="ms-1">
+                                            <small class="badge bg-secondary">#<?= $txn['sequence_number'] ?></small>
+                                        </div>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                                 <td class="text-end table-money"><?= Money::format($txn['ca']) ?></td>
                                 <td class="text-end table-money"><?= Money::format($txn['ag1']) ?></td>
@@ -314,14 +346,23 @@ function appUrl($path) {
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-muted">
-                                    <?= htmlspecialchars(substr($txn['note'] ?? '', 0, 30)) ?>
-                                    <?= strlen($txn['note'] ?? '') > 30 ? '...' : '' ?>
+                                    <?php if (!empty($txn['note'])): ?>
+                                        <?= htmlspecialchars(substr($txn['note'], 0, 30)) ?>
+                                        <?= strlen($txn['note']) > 30 ? '...' : '' ?>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm" role="group">
-                                        <a href="<?= appUrl('daily/show?id=' . $txn['id']) ?>" class="btn btn-outline-info" title="View">
+                                        <a href="<?= appUrl('daily/show?id=' . $txn['id']) ?>" class="btn btn-outline-info" title="View Transaction">
                                             <i class="bi bi-eye"></i>
                                         </a>
+                                        <?php if ($dateTransactionCount[$txn['txn_date']] > 1): ?>
+                                        <a href="<?= appUrl('daily/show-by-date?date=' . $txn['txn_date']) ?>" class="btn btn-outline-secondary" title="View All Transactions for This Date">
+                                            <i class="bi bi-calendar-day"></i>
+                                        </a>
+                                        <?php endif; ?>
                                         <?php if ($data['can_edit'] && !$data['is_locked']): ?>
                                         <a href="<?= appUrl('daily/edit?id=' . $txn['id']) ?>" class="btn btn-outline-primary" title="Edit">
                                             <i class="bi bi-pencil"></i>
@@ -352,7 +393,7 @@ function appUrl($path) {
                                 <td class="text-end table-money"><?= Money::format($data['totals']['total_je'] ?? 0) ?></td>
                                 <td class="text-end table-money text-success"><?= Money::format($data['totals']['total_fi'] ?? 0) ?></td>
                                 <td></td>
-                                <td class="text-muted"><?= $data['totals']['days_count'] ?> records</td>
+                                <td class="text-muted"><?= $data['totals']['transaction_count'] ?? $data['totals']['days_count'] ?> records</td>
                                 <td></td>
                             </tr>
                             <?php endif; ?>

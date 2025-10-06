@@ -31,7 +31,7 @@ class DailyTxn
     }
 
     /**
-     * Find transaction by date
+     * Find transaction by date (returns first transaction)
      */
     public function findByDate($date)
     {
@@ -42,7 +42,27 @@ class DailyTxn
              FROM daily_txn t 
              LEFT JOIN users uc ON t.created_by = uc.id 
              LEFT JOIN users uu ON t.updated_by = uu.id 
-             WHERE t.txn_date = ?",
+             WHERE t.txn_date = ? 
+             ORDER BY t.sequence_number ASC 
+             LIMIT 1",
+            [$date]
+        );
+    }
+
+    /**
+     * Find all transactions by date
+     */
+    public function findAllByDate($date)
+    {
+        return $this->db->fetchAll(
+            "SELECT t.*, 
+                    uc.name as created_by_name, 
+                    uu.name as updated_by_name 
+             FROM daily_txn t 
+             LEFT JOIN users uc ON t.created_by = uc.id 
+             LEFT JOIN users uu ON t.updated_by = uu.id 
+             WHERE t.txn_date = ? 
+             ORDER BY t.sequence_number ASC",
             [$date]
         );
     }
@@ -93,11 +113,15 @@ class DailyTxn
      */
     public function create($data)
     {
+        // Get the next sequence number for this date
+        $sequenceNumber = $this->getNextSequenceNumber($data['txn_date']);
+        
         return $this->db->insert(
-            "INSERT INTO daily_txn (txn_date, ca, ga, je, company_id, note, created_by) 
-             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO daily_txn (txn_date, sequence_number, ca, ga, je, company_id, note, created_by) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 $data['txn_date'],
+                $sequenceNumber,
                 $data['ca'],
                 $data['ga'],
                 $data['je'],
@@ -106,6 +130,21 @@ class DailyTxn
                 $data['created_by']
             ]
         );
+    }
+
+    /**
+     * Get the next sequence number for a given date
+     */
+    private function getNextSequenceNumber($date)
+    {
+        $result = $this->db->fetch(
+            "SELECT COALESCE(MAX(sequence_number), 0) + 1 as next_sequence 
+             FROM daily_txn 
+             WHERE txn_date = ?",
+            [$date]
+        );
+        
+        return $result['next_sequence'];
     }
 
     /**
@@ -172,12 +211,29 @@ class DailyTxn
     }
 
     /**
-     * Check if date exists
+     * Check if date exists (now returns count of transactions for that date)
      */
     public function dateExists($date, $excludeId = null)
     {
         $sql = "SELECT COUNT(*) as count FROM daily_txn WHERE txn_date = ?";
         $params = [$date];
+        
+        if ($excludeId) {
+            $sql .= " AND id != ?";
+            $params[] = $excludeId;
+        }
+        
+        $result = $this->db->fetch($sql, $params);
+        return $result['count'];
+    }
+
+    /**
+     * Check if a specific date and sequence combination exists
+     */
+    public function dateSequenceExists($date, $sequenceNumber, $excludeId = null)
+    {
+        $sql = "SELECT COUNT(*) as count FROM daily_txn WHERE txn_date = ? AND sequence_number = ?";
+        $params = [$date, $sequenceNumber];
         
         if ($excludeId) {
             $sql .= " AND id != ?";
@@ -317,12 +373,8 @@ class DailyTxn
             ->min('rate_ag2', 0, 'AG2 rate must be at least 0')
             ->max('rate_ag2', 100, 'AG2 rate cannot exceed 100%');
 
-        // Check unique date
-        if (isset($data['txn_date'])) {
-            $validator->custom('txn_date', function($value) use ($excludeId) {
-                return !$this->dateExists($value, $excludeId);
-            }, 'A transaction already exists for this date');
-        }
+        // Note: Removed unique date validation since we now allow multiple transactions per date
+        // The database will handle uniqueness via the (txn_date, sequence_number) constraint
 
         return $validator;
     }
@@ -427,7 +479,7 @@ class DailyTxn
      */
     public function getByCompany($companyId, $limit = null, $offset = 0)
     {
-        $sql = "SELECT * FROM v_daily_txn WHERE company_id = ? ORDER BY txn_date DESC";
+        $sql = "SELECT * FROM v_daily_txn WHERE company_id = ? ORDER BY txn_date DESC, sequence_number ASC";
         
         if ($limit) {
             $sql .= " LIMIT ? OFFSET ?";
@@ -435,6 +487,37 @@ class DailyTxn
         }
         
         return $this->db->fetchAll($sql, [$companyId]);
+    }
+
+    /**
+     * Get daily totals (aggregated by date)
+     */
+    public function getDailyTotals($startDate = null, $endDate = null, $orderBy = 'txn_date DESC')
+    {
+        $whereClause = '';
+        $params = [];
+        
+        if ($startDate && $endDate) {
+            $whereClause = 'WHERE txn_date BETWEEN ? AND ?';
+            $params = [$startDate, $endDate];
+        }
+        
+        return $this->db->fetchAll(
+            "SELECT * FROM v_daily_totals {$whereClause} ORDER BY {$orderBy}",
+            $params
+        );
+    }
+
+    /**
+     * Get transaction count for a specific date
+     */
+    public function getTransactionCountByDate($date)
+    {
+        $result = $this->db->fetch(
+            "SELECT COUNT(*) as count FROM daily_txn WHERE txn_date = ?",
+            [$date]
+        );
+        return $result['count'];
     }
 
     /**

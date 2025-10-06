@@ -35,9 +35,24 @@ $isEdit = $data['is_edit'];
     <div class="col-md-8">
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0">Transaction Details</h5>
+                <h5 class="card-title mb-0">
+                    Transaction Details
+                    <?php if (!$isEdit && isset($data['existing_count']) && $data['existing_count'] > 0): ?>
+                        <small class="text-muted">
+                            (<?= $data['existing_count'] ?> existing transaction<?= $data['existing_count'] != 1 ? 's' : '' ?> for this date)
+                        </small>
+                    <?php endif; ?>
+                </h5>
             </div>
             <div class="card-body">
+                <?php if (!$isEdit && isset($data['existing_count']) && $data['existing_count'] > 0): ?>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Multiple Transactions:</strong> This date already has <?= $data['existing_count'] ?> transaction<?= $data['existing_count'] != 1 ? 's' : '' ?>. 
+                    You can add another transaction for the same date.
+                    <a href="<?= appUrl('daily/show-by-date?date=' . ($transaction['txn_date'] ?? '')) ?>" class="alert-link">View existing transactions</a>
+                </div>
+                <?php endif; ?>
                 <form method="POST" action="<?= $isEdit ? appUrl('daily/edit') : appUrl('daily/create') ?>" id="transactionForm">
                     <?= CSRF::field() ?>
                     <?php if ($isEdit): ?>

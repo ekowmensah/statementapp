@@ -190,8 +190,8 @@ class DailyTxnController
         $countResult = $db->fetch($countSql, $params);
         $totalCount = $countResult['total'];
         
-        // Get transactions
-        $sql = "SELECT * FROM v_daily_txn WHERE {$whereClause} ORDER BY txn_date DESC LIMIT ? OFFSET ?";
+        // Get transactions (ordered by date desc, then sequence asc for same dates)
+        $sql = "SELECT * FROM v_daily_txn WHERE {$whereClause} ORDER BY txn_date DESC, sequence_number ASC LIMIT ? OFFSET ?";
         $params[] = $perPage;
         $params[] = $offset;
         
@@ -282,10 +282,18 @@ class DailyTxnController
     {
         Auth::requirePermission('create_daily');
 
+        $selectedDate = $_GET['date'] ?? '';
+        $existingCount = 0;
+        
+        // If date is provided, get count of existing transactions for that date
+        if ($selectedDate) {
+            $existingCount = $this->dailyTxnModel->getTransactionCountByDate($selectedDate);
+        }
+
         $data = [
             'title' => 'Create Daily Transaction - Daily Statement App',
             'transaction' => [
-                'txn_date' => $_GET['date'] ?? '', // Don't auto-fill current date
+                'txn_date' => $selectedDate,
                 'ca' => '0.00',
                 'ga' => '0.00',
                 'je' => '0.00',
@@ -294,7 +302,8 @@ class DailyTxnController
             ],
             'companies' => $this->companyModel->getActive(),
             'csrf_token' => CSRF::getToken(),
-            'is_edit' => false
+            'is_edit' => false,
+            'existing_count' => $existingCount
         ];
 
         include __DIR__ . '/../Views/daily/form.php';
@@ -764,6 +773,64 @@ class DailyTxnController
         $transactions = $this->dailyTxnModel->getByDateRangeComputed($startDate, $endDate);
 
         Response::success($transactions);
+    }
+
+    /**
+     * Show all transactions for a specific date
+     */
+    public function showByDate()
+    {
+        Auth::requirePermission('view_daily');
+
+        $date = $_GET['date'] ?? null;
+        if (!$date) {
+            Flash::error('Date parameter is required.');
+            Response::redirect('daily');
+        }
+
+        // Get all transactions for this date
+        $transactions = $this->dailyTxnModel->findAllByDate($date);
+        
+        if (empty($transactions)) {
+            Flash::error('No transactions found for this date.');
+            Response::redirect('daily');
+        }
+
+        // Get computed values for all transactions
+        $computedTransactions = [];
+        foreach ($transactions as $transaction) {
+            $computedTxn = $this->dailyTxnModel->getAllComputed();
+            $computedTxn = array_filter($computedTxn, function($txn) use ($transaction) {
+                return $txn['id'] == $transaction['id'];
+            });
+            $computedTransactions[] = reset($computedTxn) ?: $transaction;
+        }
+
+        // Calculate daily totals
+        $dailyTotals = [
+            'transaction_count' => count($computedTransactions),
+            'total_ca' => array_sum(array_column($computedTransactions, 'ca')),
+            'total_ag1' => array_sum(array_column($computedTransactions, 'ag1')),
+            'total_av1' => array_sum(array_column($computedTransactions, 'av1')),
+            'total_ag2' => array_sum(array_column($computedTransactions, 'ag2')),
+            'total_av2' => array_sum(array_column($computedTransactions, 'av2')),
+            'total_ga' => array_sum(array_column($computedTransactions, 'ga')),
+            'total_re' => array_sum(array_column($computedTransactions, 're')),
+            'total_je' => array_sum(array_column($computedTransactions, 'je')),
+            'total_fi' => array_sum(array_column($computedTransactions, 'fi'))
+        ];
+
+        $data = [
+            'title' => 'Transactions for ' . date('F j, Y', strtotime($date)) . ' - Daily Statement App',
+            'date' => $date,
+            'transactions' => $computedTransactions,
+            'daily_totals' => $dailyTotals,
+            'can_edit' => Auth::can('edit_daily') && !$this->monthLockModel->isDateLocked($date),
+            'can_delete' => Auth::can('delete_daily') && !$this->monthLockModel->isDateLocked($date),
+            'can_create' => Auth::can('create_daily') && !$this->monthLockModel->isDateLocked($date)
+        ];
+
+        include __DIR__ . '/../Views/daily/show-by-date.php';
     }
 
     /**

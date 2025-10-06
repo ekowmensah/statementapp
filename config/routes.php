@@ -21,6 +21,7 @@ return [
     'GET /daily/edit' => 'DailyTxnController@edit',
     'POST /daily/edit' => 'DailyTxnController@update',
     'GET /daily/show' => 'DailyTxnController@show',
+    'GET /daily/show-by-date' => 'DailyTxnController@showByDate',
     'POST /daily/delete' => 'DailyTxnController@delete',
 
     // Companies
