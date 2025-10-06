@@ -521,7 +521,7 @@ function initializeCharts() {
                             beginAtZero: true,
                             ticks: {
                                 callback: function(value) {
-                                    return '$' + value.toLocaleString();
+                                    return 'GH₵' + value.toLocaleString();
                                 }
                             }
                         }
@@ -595,7 +595,7 @@ function initializeCharts() {
                             beginAtZero: true,
                             ticks: {
                                 callback: function(value) {
-                                    return '$' + value.toLocaleString();
+                                    return 'GH₵' + value.toLocaleString();
                                 }
                             }
                         }
@@ -660,7 +660,7 @@ function switchChart(chartType) {
                                     if (chartType === 'rate_analysis') {
                                         return value + '%';
                                     }
-                                    return '$' + value.toLocaleString();
+                                    return 'GH₵' + value.toLocaleString();
                                 }
                             }
                         }
