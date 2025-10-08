@@ -117,14 +117,15 @@ class DailyTxn
         $sequenceNumber = $this->getNextSequenceNumber($data['txn_date']);
         
         return $this->db->insert(
-            "INSERT INTO daily_txn (txn_date, sequence_number, ca, ga, je, company_id, note, created_by) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO daily_txn (txn_date, sequence_number, ca, ga, je, gai_ga, company_id, note, created_by) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 $data['txn_date'],
                 $sequenceNumber,
                 $data['ca'],
                 $data['ga'],
                 $data['je'],
+                $data['gai_ga'] ?? 0.00, // GAI GA field with default 0
                 $data['company_id'], // Now required, no null fallback
                 $data['note'] ?? null,
                 $data['created_by']
@@ -173,6 +174,11 @@ class DailyTxn
         if (isset($data['je'])) {
             $fields[] = 'je = ?';
             $params[] = $data['je'];
+        }
+        
+        if (isset($data['gai_ga'])) {
+            $fields[] = 'gai_ga = ?';
+            $params[] = $data['gai_ga'];
         }
         
         if (isset($data['company_id'])) {
@@ -362,6 +368,9 @@ class DailyTxn
             ->numeric('je', 'JE amount must be a number')
             ->min('je', 0, 'JE amount must be at least 0')
             ->decimal('je', 2, 'JE amount cannot have more than 2 decimal places')
+            ->numeric('gai_ga', 'GAI GA amount must be a number')
+            ->min('gai_ga', 0, 'GAI GA amount must be at least 0')
+            ->decimal('gai_ga', 2, 'GAI GA amount cannot have more than 2 decimal places')
             ->required('company_id', 'Company is required')
             ->numeric('company_id', 'Please select a valid company')
             ->required('rate_ag1', 'AG1 rate is required')

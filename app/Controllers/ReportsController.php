@@ -1504,6 +1504,7 @@ class ReportsController
                 'ag2' => ['name' => 'AG2 (Second Tier)', 'color' => '#d63384'],
                 'av2' => ['name' => 'AV2 (After AG2)', 'color' => '#dc3545'],
                 'ga' => ['name' => 'GA (Fixed Deduction)', 'color' => '#fd7e14'],
+                'gai_ga' => ['name' => 'GAI GA (Isolated Figures)', 'color' => '#8b5cf6'],
                 're' => ['name' => 'RE (Revenue Enhancement)', 'color' => '#ffc107'],
                 'je' => ['name' => 'JE (Joint Expenses)', 'color' => '#20c997'],
                 'fi' => ['name' => 'FI (Final Income)', 'color' => '#198754']
@@ -1563,6 +1564,8 @@ class ReportsController
                     ROUND(AVG(av2), 2) as avg_av2,
                     ROUND(SUM(ga), 2) as total_ga,
                     ROUND(AVG(ga), 2) as avg_ga,
+                    ROUND(SUM(gai_ga), 2) as total_gai_ga,
+                    ROUND(AVG(gai_ga), 2) as avg_gai_ga,
                     ROUND(SUM(re), 2) as total_re,
                     ROUND(AVG(re), 2) as avg_re,
                     ROUND(SUM(je), 2) as total_je,
@@ -1609,6 +1612,7 @@ class ReportsController
                     ROUND(SUM(ag2), 2) as grand_total_ag2,
                     ROUND(SUM(av2), 2) as grand_total_av2,
                     ROUND(SUM(ga), 2) as grand_total_ga,
+                    ROUND(SUM(gai_ga), 2) as grand_total_gai_ga,
                     ROUND(SUM(re), 2) as grand_total_re,
                     ROUND(SUM(je), 2) as grand_total_je,
                     ROUND(SUM(fi), 2) as grand_total_fi,
@@ -1777,15 +1781,17 @@ class ReportsController
             }
         }
         
-        $filename = 'Consolidated_Report_' . $data['start_date'] . '_to_' . $data['end_date'] . $companyName . '_' . date('Y-m-d_H-i-s') . '.xlsx';
+        // Use .csv extension for better Excel compatibility
+        $filename = 'Consolidated_Report_' . $data['start_date'] . '_to_' . $data['end_date'] . $companyName . '_' . date('Y-m-d_H-i-s') . '.csv';
 
-        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        // Use CSV MIME type for Excel compatibility
+        header('Content-Type: text/csv; charset=UTF-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Cache-Control: private, max-age=0, must-revalidate');
         header('Pragma: public');
 
-        // Generate Excel content
-        echo $this->generateExcelContent($data);
+        // Generate Excel-compatible CSV content
+        echo $this->generateExcelCSVContent($data);
         exit;
     }
 
@@ -1831,6 +1837,7 @@ class ReportsController
             fputcsv($output, ['Total Transactions', $data['summary_stats']['total_transactions']]);
             fputcsv($output, ['Companies Involved', $data['summary_stats']['companies_involved']]);
             fputcsv($output, ['Grand Total CA', 'GH₵' . number_format($data['summary_stats']['grand_total_ca'], 2)]);
+            fputcsv($output, ['Grand Total GAI GA', 'GH₵' . number_format($data['summary_stats']['grand_total_gai_ga'] ?? 0, 2)]);
             fputcsv($output, ['Grand Total FI', 'GH₵' . number_format($data['summary_stats']['grand_total_fi'], 2)]);
             fputcsv($output, ['Average FI', 'GH₵' . number_format($data['summary_stats']['overall_avg_fi'], 2)]);
             fputcsv($output, []); // Empty row
@@ -1839,7 +1846,7 @@ class ReportsController
         // Detailed data
         if ($data['export_options']['include_details']) {
             fputcsv($output, ['DETAILED BREAKDOWN']);
-            fputcsv($output, ['Period', 'Transactions', 'CA', 'AG1', 'AV1', 'AG2', 'AV2', 'GA', 'RE', 'JE', 'FI']);
+            fputcsv($output, ['Period', 'Transactions', 'CA', 'AG1', 'AV1', 'AG2', 'AV2', 'GA', 'GAI GA', 'RE', 'JE', 'FI']);
             
             foreach ($data['consolidated_data'] as $row) {
                 fputcsv($output, [
@@ -1851,6 +1858,7 @@ class ReportsController
                     number_format($row['total_ag2'], 2),
                     number_format($row['total_av2'], 2),
                     number_format($row['total_ga'], 2),
+                    number_format($row['total_gai_ga'] ?? 0, 2),
                     number_format($row['total_re'], 2),
                     number_format($row['total_je'], 2),
                     number_format($row['total_fi'], 2)
@@ -2029,52 +2037,229 @@ class ReportsController
     }
 
     /**
-     * Generate Excel content (simplified XML format)
+     * Generate Excel-compatible CSV content with proper formatting
+     */
+    private function generateExcelCSVContent($data)
+    {
+        $output = fopen('php://output', 'w');
+        
+        // Add BOM for UTF-8 to ensure proper character encoding in Excel
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+        
+        // Report header
+        fputcsv($output, ['Consolidated Financial Report']);
+        fputcsv($output, ['Generated on', date('Y-m-d H:i:s')]);
+        fputcsv($output, ['Period', $data['start_date'] . ' to ' . $data['end_date']]);
+        
+        // Company info
+        $companyName = 'All Companies';
+        if (!empty($data['company_id'])) {
+            foreach ($data['companies'] as $company) {
+                if ($company['id'] == $data['company_id']) {
+                    $companyName = $company['name'];
+                    break;
+                }
+            }
+        }
+        fputcsv($output, ['Company', $companyName]);
+        fputcsv($output, ['Grouping', ucfirst($data['group_by'])]);
+        fputcsv($output, []); // Empty row
+
+        // Summary statistics
+        if ($data['export_options']['include_summary']) {
+            fputcsv($output, ['SUMMARY STATISTICS']);
+            fputcsv($output, ['Total Transactions', $data['summary_stats']['total_transactions']]);
+            fputcsv($output, ['Companies Involved', $data['summary_stats']['companies_involved']]);
+            fputcsv($output, ['Grand Total CA', 'GH₵' . number_format($data['summary_stats']['grand_total_ca'], 2)]);
+            fputcsv($output, ['Grand Total GAI GA', 'GH₵' . number_format($data['summary_stats']['grand_total_gai_ga'] ?? 0, 2)]);
+            fputcsv($output, ['Grand Total FI', 'GH₵' . number_format($data['summary_stats']['grand_total_fi'], 2)]);
+            fputcsv($output, ['Average FI', 'GH₵' . number_format($data['summary_stats']['overall_avg_fi'], 2)]);
+            fputcsv($output, []); // Empty row
+        }
+
+        // Detailed data
+        if ($data['export_options']['include_details']) {
+            fputcsv($output, ['DETAILED BREAKDOWN']);
+            fputcsv($output, ['Period', 'Transactions', 'CA', 'AG1', 'AV1', 'AG2', 'AV2', 'GA', 'GAI GA', 'RE', 'JE', 'FI']);
+            
+            foreach ($data['consolidated_data'] as $row) {
+                fputcsv($output, [
+                    $row['period'],
+                    $row['transaction_count'],
+                    'GH₵' . number_format($row['total_ca'], 2),
+                    'GH₵' . number_format($row['total_ag1'], 2),
+                    'GH₵' . number_format($row['total_av1'], 2),
+                    'GH₵' . number_format($row['total_ag2'], 2),
+                    'GH₵' . number_format($row['total_av2'], 2),
+                    'GH₵' . number_format($row['total_ga'], 2),
+                    'GH₵' . number_format($row['total_gai_ga'] ?? 0, 2),
+                    'GH₵' . number_format($row['total_re'], 2),
+                    'GH₵' . number_format($row['total_je'], 2),
+                    'GH₵' . number_format($row['total_fi'], 2)
+                ]);
+            }
+            fputcsv($output, []); // Empty row
+        }
+
+        // Trend analysis
+        if ($data['export_options']['include_trends'] && !empty($data['trend_analysis']['growth_rates'])) {
+            fputcsv($output, ['TREND ANALYSIS']);
+            fputcsv($output, ['Metric', 'Growth Rate (%)']);
+            
+            foreach ($data['trend_analysis']['growth_rates'] as $metric => $rate) {
+                $metricNames = [
+                    'ca' => 'CA', 'ag1' => 'AG1', 'av1' => 'AV1', 'ag2' => 'AG2', 
+                    'av2' => 'AV2', 'ga' => 'GA', 're' => 'RE', 'je' => 'JE', 'fi' => 'FI'
+                ];
+                $displayName = $metricNames[$metric] ?? strtoupper($metric);
+                
+                fputcsv($output, [
+                    $displayName,
+                    number_format($rate, 2) . '%'
+                ]);
+            }
+        }
+
+        fclose($output);
+        return '';
+    }
+
+    /**
+     * Generate Excel content (XML format - kept for reference)
      */
     private function generateExcelContent($data)
     {
-        // This is a simplified Excel XML format
-        // For production, consider using PhpSpreadsheet library
+        // Generate proper Excel 2003 XML format
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-        $xml .= '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' . "\n";
+        $xml .= '<?mso-application progid="Excel.Sheet"?>' . "\n";
+        $xml .= '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"' . "\n";
+        $xml .= ' xmlns:o="urn:schemas-microsoft-com:office:office"' . "\n";
+        $xml .= ' xmlns:x="urn:schemas-microsoft-com:office:excel"' . "\n";
+        $xml .= ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"' . "\n";
+        $xml .= ' xmlns:html="http://www.w3.org/TR/REC-html40">' . "\n";
+        
+        // Document properties
+        $xml .= '<DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">' . "\n";
+        $xml .= '<Title>Consolidated Financial Report</Title>' . "\n";
+        $xml .= '<Author>Daily Statement App</Author>' . "\n";
+        $xml .= '<Created>' . date('c') . '</Created>' . "\n";
+        $xml .= '</DocumentProperties>' . "\n";
+        
+        // Styles
+        $xml .= '<Styles>' . "\n";
+        $xml .= '<Style ss:ID="Header">' . "\n";
+        $xml .= '<Font ss:Bold="1" ss:Size="12"/>' . "\n";
+        $xml .= '<Interior ss:Color="#E0E0E0" ss:Pattern="Solid"/>' . "\n";
+        $xml .= '<Borders>' . "\n";
+        $xml .= '<Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>' . "\n";
+        $xml .= '<Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>' . "\n";
+        $xml .= '<Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>' . "\n";
+        $xml .= '<Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>' . "\n";
+        $xml .= '</Borders>' . "\n";
+        $xml .= '</Style>' . "\n";
+        $xml .= '<Style ss:ID="Currency">' . "\n";
+        $xml .= '<NumberFormat ss:Format="&quot;GH₵&quot;#,##0.00"/>' . "\n";
+        $xml .= '</Style>' . "\n";
+        $xml .= '<Style ss:ID="Title">' . "\n";
+        $xml .= '<Font ss:Bold="1" ss:Size="14"/>' . "\n";
+        $xml .= '</Style>' . "\n";
+        $xml .= '</Styles>' . "\n";
+        
+        // Worksheet
         $xml .= '<Worksheet ss:Name="Consolidated Report">' . "\n";
         $xml .= '<Table>' . "\n";
         
-        // Header
-        $xml .= '<Row><Cell><Data ss:Type="String">Consolidated Financial Report</Data></Cell></Row>' . "\n";
+        // Title and metadata
+        $xml .= '<Row><Cell ss:StyleID="Title"><Data ss:Type="String">Consolidated Financial Report</Data></Cell></Row>' . "\n";
+        $xml .= '<Row><Cell><Data ss:Type="String">Generated: ' . date('Y-m-d H:i:s') . '</Data></Cell></Row>' . "\n";
         $xml .= '<Row><Cell><Data ss:Type="String">Period: ' . $data['start_date'] . ' to ' . $data['end_date'] . '</Data></Cell></Row>' . "\n";
-        $xml .= '<Row></Row>' . "\n";
         
-        // Data headers
-        $xml .= '<Row>';
-        $xml .= '<Cell><Data ss:Type="String">Period</Data></Cell>';
-        $xml .= '<Cell><Data ss:Type="String">Transactions</Data></Cell>';
-        $xml .= '<Cell><Data ss:Type="String">CA</Data></Cell>';
-        $xml .= '<Cell><Data ss:Type="String">AG1</Data></Cell>';
-        $xml .= '<Cell><Data ss:Type="String">AV1</Data></Cell>';
-        $xml .= '<Cell><Data ss:Type="String">AG2</Data></Cell>';
-        $xml .= '<Cell><Data ss:Type="String">AV2</Data></Cell>';
-        $xml .= '<Cell><Data ss:Type="String">GA</Data></Cell>';
-        $xml .= '<Cell><Data ss:Type="String">RE</Data></Cell>';
-        $xml .= '<Cell><Data ss:Type="String">JE</Data></Cell>';
-        $xml .= '<Cell><Data ss:Type="String">FI</Data></Cell>';
-        $xml .= '</Row>' . "\n";
+        // Company filter info
+        $companyName = 'All Companies';
+        if (!empty($data['company_id'])) {
+            foreach ($data['companies'] as $company) {
+                if ($company['id'] == $data['company_id']) {
+                    $companyName = $company['name'];
+                    break;
+                }
+            }
+        }
+        $xml .= '<Row><Cell><Data ss:Type="String">Company: ' . htmlspecialchars($companyName) . '</Data></Cell></Row>' . "\n";
+        $xml .= '<Row><Cell><Data ss:Type="String">Grouping: ' . ucfirst($data['group_by']) . '</Data></Cell></Row>' . "\n";
+        $xml .= '<Row></Row>' . "\n"; // Empty row
         
-        // Data rows
-        foreach ($data['consolidated_data'] as $row) {
+        // Summary section
+        if ($data['export_options']['include_summary']) {
+            $xml .= '<Row><Cell ss:StyleID="Title"><Data ss:Type="String">SUMMARY STATISTICS</Data></Cell></Row>' . "\n";
+            $xml .= '<Row><Cell><Data ss:Type="String">Total Transactions:</Data></Cell><Cell><Data ss:Type="Number">' . $data['summary_stats']['total_transactions'] . '</Data></Cell></Row>' . "\n";
+            $xml .= '<Row><Cell><Data ss:Type="String">Companies Involved:</Data></Cell><Cell><Data ss:Type="Number">' . $data['summary_stats']['companies_involved'] . '</Data></Cell></Row>' . "\n";
+            $xml .= '<Row><Cell><Data ss:Type="String">Grand Total CA:</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $data['summary_stats']['grand_total_ca'] . '</Data></Cell></Row>' . "\n";
+            $xml .= '<Row><Cell><Data ss:Type="String">Grand Total GAI GA:</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">' . ($data['summary_stats']['grand_total_gai_ga'] ?? 0) . '</Data></Cell></Row>' . "\n";
+            $xml .= '<Row><Cell><Data ss:Type="String">Grand Total FI:</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $data['summary_stats']['grand_total_fi'] . '</Data></Cell></Row>' . "\n";
+            $xml .= '<Row><Cell><Data ss:Type="String">Average FI:</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $data['summary_stats']['overall_avg_fi'] . '</Data></Cell></Row>' . "\n";
+            $xml .= '<Row></Row>' . "\n"; // Empty row
+        }
+        
+        // Detailed data section
+        if ($data['export_options']['include_details']) {
+            $xml .= '<Row><Cell ss:StyleID="Title"><Data ss:Type="String">DETAILED BREAKDOWN</Data></Cell></Row>' . "\n";
+            
+            // Data headers with styling
             $xml .= '<Row>';
-            $xml .= '<Cell><Data ss:Type="String">' . htmlspecialchars($row['period']) . '</Data></Cell>';
-            $xml .= '<Cell><Data ss:Type="Number">' . $row['transaction_count'] . '</Data></Cell>';
-            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_ca'] . '</Data></Cell>';
-            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_ag1'] . '</Data></Cell>';
-            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_av1'] . '</Data></Cell>';
-            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_ag2'] . '</Data></Cell>';
-            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_av2'] . '</Data></Cell>';
-            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_ga'] . '</Data></Cell>';
-            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_re'] . '</Data></Cell>';
-            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_je'] . '</Data></Cell>';
-            $xml .= '<Cell><Data ss:Type="Number">' . $row['total_fi'] . '</Data></Cell>';
+            $xml .= '<Cell ss:StyleID="Header"><Data ss:Type="String">Period</Data></Cell>';
+            $xml .= '<Cell ss:StyleID="Header"><Data ss:Type="String">Transactions</Data></Cell>';
+            $xml .= '<Cell ss:StyleID="Header"><Data ss:Type="String">CA</Data></Cell>';
+            $xml .= '<Cell ss:StyleID="Header"><Data ss:Type="String">AG1</Data></Cell>';
+            $xml .= '<Cell ss:StyleID="Header"><Data ss:Type="String">AV1</Data></Cell>';
+            $xml .= '<Cell ss:StyleID="Header"><Data ss:Type="String">AG2</Data></Cell>';
+            $xml .= '<Cell ss:StyleID="Header"><Data ss:Type="String">AV2</Data></Cell>';
+            $xml .= '<Cell ss:StyleID="Header"><Data ss:Type="String">GA</Data></Cell>';
+            $xml .= '<Cell ss:StyleID="Header"><Data ss:Type="String">GAI GA</Data></Cell>';
+            $xml .= '<Cell ss:StyleID="Header"><Data ss:Type="String">RE</Data></Cell>';
+            $xml .= '<Cell ss:StyleID="Header"><Data ss:Type="String">JE</Data></Cell>';
+            $xml .= '<Cell ss:StyleID="Header"><Data ss:Type="String">FI</Data></Cell>';
             $xml .= '</Row>' . "\n";
+            
+            // Data rows
+            foreach ($data['consolidated_data'] as $row) {
+                $xml .= '<Row>';
+                $xml .= '<Cell><Data ss:Type="String">' . htmlspecialchars($row['period']) . '</Data></Cell>';
+                $xml .= '<Cell><Data ss:Type="Number">' . $row['transaction_count'] . '</Data></Cell>';
+                $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $row['total_ca'] . '</Data></Cell>';
+                $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $row['total_ag1'] . '</Data></Cell>';
+                $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $row['total_av1'] . '</Data></Cell>';
+                $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $row['total_ag2'] . '</Data></Cell>';
+                $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $row['total_av2'] . '</Data></Cell>';
+                $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $row['total_ga'] . '</Data></Cell>';
+                $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . ($row['total_gai_ga'] ?? 0) . '</Data></Cell>';
+                $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $row['total_re'] . '</Data></Cell>';
+                $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $row['total_je'] . '</Data></Cell>';
+                $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $row['total_fi'] . '</Data></Cell>';
+                $xml .= '</Row>' . "\n";
+            }
+        }
+        
+        // Trend analysis section
+        if ($data['export_options']['include_trends'] && !empty($data['trend_analysis']['growth_rates'])) {
+            $xml .= '<Row></Row>' . "\n"; // Empty row
+            $xml .= '<Row><Cell ss:StyleID="Title"><Data ss:Type="String">TREND ANALYSIS</Data></Cell></Row>' . "\n";
+            $xml .= '<Row>';
+            $xml .= '<Cell ss:StyleID="Header"><Data ss:Type="String">Metric</Data></Cell>';
+            $xml .= '<Cell ss:StyleID="Header"><Data ss:Type="String">Growth Rate (%)</Data></Cell>';
+            $xml .= '</Row>' . "\n";
+            
+            foreach ($data['trend_analysis']['growth_rates'] as $metric => $rate) {
+                $metricNames = [
+                    'ca' => 'CA', 'ag1' => 'AG1', 'av1' => 'AV1', 'ag2' => 'AG2', 
+                    'av2' => 'AV2', 'ga' => 'GA', 're' => 'RE', 'je' => 'JE', 'fi' => 'FI'
+                ];
+                $displayName = $metricNames[$metric] ?? strtoupper($metric);
+                
+                $xml .= '<Row>';
+                $xml .= '<Cell><Data ss:Type="String">' . $displayName . '</Data></Cell>';
+                $xml .= '<Cell><Data ss:Type="Number">' . number_format($rate, 2) . '</Data></Cell>';
+                $xml .= '</Row>' . "\n";
+            }
         }
         
         $xml .= '</Table>' . "\n";

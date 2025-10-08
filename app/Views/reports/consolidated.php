@@ -30,6 +30,7 @@ $metrics = $data['metrics'];
 .trend-up { color: #198754; }
 .trend-down { color: #dc3545; }
 .trend-stable { color: #6c757d; }
+.text-purple { color: #8b5cf6; }
 
 .chart-container {
     position: relative;
@@ -353,6 +354,7 @@ $metrics = $data['metrics'];
                                 <th class="text-end">AG2</th>
                                 <th class="text-end">AV2</th>
                                 <th class="text-end">GA</th>
+                                <th class="text-end">GAI GA</th>
                                 <th class="text-end">RE</th>
                                 <th class="text-end">JE</th>
                                 <th class="text-end">FI</th>
@@ -369,6 +371,7 @@ $metrics = $data['metrics'];
                                 <td class="text-end"><?= Money::format($row['total_ag2']) ?></td>
                                 <td class="text-end"><?= Money::format($row['total_av2']) ?></td>
                                 <td class="text-end"><?= Money::format($row['total_ga']) ?></td>
+                                <td class="text-end text-purple"><?= Money::format($row['total_gai_ga'] ?? 0) ?></td>
                                 <td class="text-end"><?= Money::format($row['total_re']) ?></td>
                                 <td class="text-end"><?= Money::format($row['total_je']) ?></td>
                                 <td class="text-end fw-bold text-success"><?= Money::format($row['total_fi']) ?></td>
@@ -493,9 +496,9 @@ $metrics = $data['metrics'];
                                     <div class="form-check mb-3">
                                         <input class="form-check-input" type="radio" name="format" id="formatExcel" value="excel">
                                         <label class="form-check-label" for="formatExcel">
-                                            <i class="bi bi-filetype-xlsx text-success me-2"></i>
-                                            <strong>Excel Spreadsheet</strong>
-                                            <small class="d-block text-muted">Editable format for further analysis and calculations</small>
+                                            <i class="bi bi-filetype-csv text-success me-2"></i>
+                                            <strong>Excel Compatible (CSV)</strong>
+                                            <small class="d-block text-muted">CSV format optimized for Excel with GH₵ currency formatting</small>
                                         </label>
                                     </div>
                                     <div class="form-check">

@@ -21,7 +21,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@coreui/coreui@4.2.6/dist/js/coreui.bundle.min.js"></script>
     
     <!-- Custom JavaScript -->
-    <script>
+    <!-- <script>
         // Global configuration
         window.AppConfig = {
             baseUrl: '<?= Response::baseUrl() ?>',
@@ -242,6 +242,18 @@
 
         window.addEventListener('beforeinstallprompt', (e) => {
             console.log('PWA: Install prompt available');
+            
+            // Check if app is already installed before showing prompt
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+            const isIOSStandalone = window.navigator.standalone === true;
+            const isInstalledFlag = localStorage.getItem('pwa-installed') === 'true';
+            
+            if (isStandalone || isIOSStandalone || isInstalledFlag) {
+                console.log('PWA: App already installed, ignoring beforeinstallprompt');
+                e.preventDefault();
+                return;
+            }
+            
             e.preventDefault();
             deferredPrompt = e;
             
@@ -323,6 +335,19 @@
         // Enhanced app installation detection
         window.addEventListener('load', () => {
             checkInstallationStatus();
+        });
+
+        // Immediate check on DOM ready (faster than window load)
+        document.addEventListener('DOMContentLoaded', () => {
+            // Quick check to hide install elements if app is already installed
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+            const isIOSStandalone = window.navigator.standalone === true;
+            const isInstalledFlag = localStorage.getItem('pwa-installed') === 'true';
+            
+            if (isStandalone || isIOSStandalone || isInstalledFlag) {
+                console.log('PWA: Quick check - app is installed, hiding install elements');
+                hideInstallButton();
+            }
         });
 
         async function checkInstallationStatus() {
@@ -408,6 +433,16 @@
         }
 
         function showInstallButton() {
+            // Double-check installation status before showing button
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+            const isIOSStandalone = window.navigator.standalone === true;
+            const isInstalledFlag = localStorage.getItem('pwa-installed') === 'true';
+            
+            if (isStandalone || isIOSStandalone || isInstalledFlag) {
+                console.log('PWA: App is installed, not showing install button');
+                return;
+            }
+            
             // Create install button if it doesn't exist
             if (!installButton) {
                 installButton = document.createElement('button');
@@ -560,6 +595,33 @@
             location.reload();
         };
 
+        // Add function to check current PWA installation status (for debugging)
+        window.checkPWAStatus = function() {
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+            const isIOSStandalone = window.navigator.standalone === true;
+            const isInWebApk = document.referrer.includes('android-app://');
+            const isInstalledFlag = localStorage.getItem('pwa-installed') === 'true';
+            const installDate = localStorage.getItem('pwa-install-date');
+            
+            console.log('PWA Status Check:', {
+                isStandalone,
+                isIOSStandalone,
+                isInWebApk,
+                isInstalledFlag,
+                installDate,
+                displayMode: window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser',
+                userAgent: navigator.userAgent,
+                referrer: document.referrer,
+                installButtonExists: !!document.querySelector('.install-btn'),
+                deferredPromptExists: !!deferredPrompt
+            });
+            
+            return {
+                isInstalled: isStandalone || isIOSStandalone || isInWebApk || isInstalledFlag,
+                installButtonVisible: !!document.querySelector('.install-btn')
+            };
+        };
+
         // Monitor for app uninstallation
         window.addEventListener('beforeunload', () => {
             // If the app is being closed from standalone mode, it might be uninstalled
@@ -627,13 +689,23 @@
         }
 
         function showManualInstallOption() {
+            // Double-check installation status before showing manual install option
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+            const isIOSStandalone = window.navigator.standalone === true;
+            const isInstalledFlag = localStorage.getItem('pwa-installed') === 'true';
+            
+            if (isStandalone || isIOSStandalone || isInstalledFlag) {
+                console.log('PWA: App is installed, not showing manual install option');
+                return;
+            }
+            
             // Create manual install button that tries to trigger native install
             if (!installButton) {
                 installButton = document.createElement('button');
                 installButton.innerHTML = `
                     <div class="d-flex align-items-center">
                         <i class="bi bi-download me-2"></i>
-                        <span>Install App</span>
+                        <span>Install aaApp</span>
                     </div>
                 `;
                 installButton.className = 'btn position-fixed install-btn manual-install';
@@ -1020,7 +1092,7 @@
         updateHeaderDate();
         setInterval(updateHeaderDate, 60000); // Update every minute
 
-    </script>
+    </script> -->
 
     <!-- Page-specific scripts -->
     <?php if (isset($data['scripts'])): ?>

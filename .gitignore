@@ -7,3 +7,6 @@ public/index.html
 sql/allow_multiple_transactions_per_date_no_use.sql
 sql/allow_multiple_transactions_per_date.sql
 MULTIPLE_TRANSACTIONS_DEPLOYMENT.md
+sql/add_gai_ga_column.sql
+.gitignore
+sql/quick_fix_gai_ga.sql

@@ -163,6 +163,25 @@ $isEdit = $data['is_edit'];
                         </div>
                     </div>
                     
+                    <!-- GAI GA Row -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="gai_ga" class="form-label">GAI GA Amount</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">GH₵</span>
+                                    <input type="number" class="form-control money-input" id="gai_ga" name="gai_ga" 
+                                           value="<?= Money::formatForInput($oldInput['gai_ga'] ?? ($transaction['gai_ga'] ?? 0)) ?>" 
+                                           step="0.01" min="0">
+                                </div>
+                                <div class="form-text">GAI GA - Isolated field for specific transaction figures (optional)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <!-- Empty column for layout balance -->
+                        </div>
+                    </div>
+                    
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-<?= $isEdit ? 'check' : 'plus' ?>-circle me-2"></i>

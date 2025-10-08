@@ -165,19 +165,19 @@ class DailyTxnController
         $params = [];
         
         // Date range filter
-        $whereConditions[] = "txn_date BETWEEN ? AND ?";
+        $whereConditions[] = "vdt.txn_date BETWEEN ? AND ?";
         $params[] = $dateRange['start'];
         $params[] = $dateRange['end'];
         
         // Company filter
         if ($companyId) {
-            $whereConditions[] = "company_id = ?";
+            $whereConditions[] = "vdt.company_id = ?";
             $params[] = $companyId;
         }
         
         // Search filter
         if ($search) {
-            $whereConditions[] = "(txn_date LIKE ? OR note LIKE ? OR company_name LIKE ?)";
+            $whereConditions[] = "(vdt.txn_date LIKE ? OR vdt.note LIKE ? OR c.name LIKE ?)";
             $params[] = "%{$search}%";
             $params[] = "%{$search}%";
             $params[] = "%{$search}%";
@@ -186,12 +186,20 @@ class DailyTxnController
         $whereClause = implode(' AND ', $whereConditions);
         
         // Get total count
-        $countSql = "SELECT COUNT(*) as total FROM v_daily_txn WHERE {$whereClause}";
+        $countSql = "SELECT COUNT(*) as total 
+                     FROM v_daily_txn vdt 
+                     LEFT JOIN companies c ON vdt.company_id = c.id 
+                     WHERE {$whereClause}";
         $countResult = $db->fetch($countSql, $params);
         $totalCount = $countResult['total'];
         
-        // Get transactions (ordered by date desc, then sequence asc for same dates)
-        $sql = "SELECT * FROM v_daily_txn WHERE {$whereClause} ORDER BY txn_date DESC, sequence_number ASC LIMIT ? OFFSET ?";
+        // Get transactions with company names (ordered by date desc, then sequence asc for same dates)
+        $sql = "SELECT vdt.*, c.name as company_name 
+                FROM v_daily_txn vdt 
+                LEFT JOIN companies c ON vdt.company_id = c.id 
+                WHERE {$whereClause} 
+                ORDER BY vdt.txn_date DESC, vdt.sequence_number ASC 
+                LIMIT ? OFFSET ?";
         $params[] = $perPage;
         $params[] = $offset;
         
@@ -236,12 +244,14 @@ class DailyTxnController
         
         $sql = "SELECT 
                     COUNT(*) as days_count,
+                    COUNT(*) as transaction_count,
                     SUM(ca) as total_ca,
                     SUM(ag1) as total_ag1,
                     SUM(av1) as total_av1,
                     SUM(ag2) as total_ag2,
                     SUM(av2) as total_av2,
                     SUM(ga) as total_ga,
+                    SUM(gai_ga) as total_gai_ga,
                     SUM(re) as total_re,
                     SUM(je) as total_je,
                     SUM(fi) as total_fi,
@@ -297,6 +307,7 @@ class DailyTxnController
                 'ca' => '0.00',
                 'ga' => '0.00',
                 'je' => '0.00',
+                'gai_ga' => '0.00',
                 'company_id' => '',
                 'note' => ''
             ],
@@ -331,6 +342,7 @@ class DailyTxnController
             'ca' => trim($_POST['ca'] ?? '0'),
             'ga' => trim($_POST['ga'] ?? '0'),
             'je' => trim($_POST['je'] ?? '0'),
+            'gai_ga' => trim($_POST['gai_ga'] ?? '0'),
             'rate_ag1' => trim($_POST['rate_ag1'] ?? '21'),
             'rate_ag2' => trim($_POST['rate_ag2'] ?? '4'),
             'company_id' => trim($_POST['company_id'] ?? ''),
@@ -363,6 +375,7 @@ class DailyTxnController
             $data['ca'] = Money::parse($data['ca']);
             $data['ga'] = Money::parse($data['ga']);
             $data['je'] = Money::parse($data['je']);
+            $data['gai_ga'] = Money::parse($data['gai_ga']);
             
             // Convert percentage rates to decimals
             $data['rate_ag1'] = floatval($data['rate_ag1']) / 100;
@@ -460,6 +473,7 @@ class DailyTxnController
             'ca' => trim($_POST['ca'] ?? '0'),
             'ga' => trim($_POST['ga'] ?? '0'),
             'je' => trim($_POST['je'] ?? '0'),
+            'gai_ga' => trim($_POST['gai_ga'] ?? '0'),
             'rate_ag1' => trim($_POST['rate_ag1'] ?? '21'),
             'rate_ag2' => trim($_POST['rate_ag2'] ?? '4'),
             'company_id' => trim($_POST['company_id'] ?? ''),
@@ -492,6 +506,7 @@ class DailyTxnController
             $data['ca'] = Money::parse($data['ca']);
             $data['ga'] = Money::parse($data['ga']);
             $data['je'] = Money::parse($data['je']);
+            $data['gai_ga'] = Money::parse($data['gai_ga']);
             
             // Convert percentage rates to decimals
             $data['rate_ag1'] = floatval($data['rate_ag1']) / 100;
@@ -815,6 +830,7 @@ class DailyTxnController
             'total_ag2' => array_sum(array_column($computedTransactions, 'ag2')),
             'total_av2' => array_sum(array_column($computedTransactions, 'av2')),
             'total_ga' => array_sum(array_column($computedTransactions, 'ga')),
+            'total_gai_ga' => array_sum(array_column($computedTransactions, 'gai_ga')),
             'total_re' => array_sum(array_column($computedTransactions, 're')),
             'total_je' => array_sum(array_column($computedTransactions, 'je')),
             'total_fi' => array_sum(array_column($computedTransactions, 'fi'))

@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../Models/DailyTxn.php';
 require_once __DIR__ . '/../Models/MonthLock.php';
+require_once __DIR__ . '/../Models/Company.php';
 require_once __DIR__ . '/../Helpers/auth.php';
 require_once __DIR__ . '/../Helpers/response.php';
 require_once __DIR__ . '/../Helpers/money.php';
@@ -15,11 +16,13 @@ class DashboardController
 {
     private $dailyTxnModel;
     private $monthLockModel;
+    private $companyModel;
 
     public function __construct()
     {
         $this->dailyTxnModel = new DailyTxn();
         $this->monthLockModel = new MonthLock();
+        $this->companyModel = new Company();
     }
 
     /**
@@ -54,6 +57,9 @@ class DashboardController
         // Trend analysis
         $trendAnalysis = $this->analyzeTrends($currentYear, $currentMonth);
 
+        // Company summary totals
+        $companySummary = $this->getCompanySummary($currentYear, $currentMonth);
+
         // Get available year range from database
         $yearRange = $this->getAvailableYearRange();
         
@@ -68,6 +74,7 @@ class DashboardController
             'chart_data' => $chartData,
             'insights' => $insights,
             'trend_analysis' => $trendAnalysis,
+            'company_summary' => $companySummary,
             'user' => Auth::user()
         ];
 
@@ -856,6 +863,125 @@ class DashboardController
             'min' => (int)$minYear,
             'max' => (int)$maxYear
         ];
+    }
+
+    /**
+     * Get company-wise summary totals
+     */
+    private function getCompanySummary($year, $month)
+    {
+        $db = Database::getInstance();
+        
+        try {
+            // First check if companies table exists
+            $tableCheck = $db->fetch("SHOW TABLES LIKE 'companies'");
+            if (!$tableCheck) {
+                // Companies table doesn't exist, return empty array
+                error_log("Companies table does not exist");
+                return [];
+            }
+            
+            // Check if company_id column exists in daily_txn table
+            $columnCheck = $db->fetch("SHOW COLUMNS FROM daily_txn LIKE 'company_id'");
+            if (!$columnCheck) {
+                // company_id column doesn't exist, return empty array
+                error_log("company_id column does not exist in daily_txn table");
+                return [];
+            }
+            
+            // Debug: Check if companies exist
+            $companyCount = $db->fetch("SELECT COUNT(*) as count FROM companies WHERE is_active = 1");
+            error_log("Active companies count: " . $companyCount['count']);
+            
+            // Debug: Check if transactions exist for current month
+            $transactionCount = $db->fetch("SELECT COUNT(*) as count FROM daily_txn WHERE YEAR(txn_date) = ? AND MONTH(txn_date) = ?", [$year, $month]);
+            error_log("Transactions for {$year}-{$month}: " . $transactionCount['count']);
+            
+            // Debug: Check transactions with company assignments
+            $assignedCount = $db->fetch("SELECT COUNT(*) as count FROM daily_txn WHERE company_id IS NOT NULL AND company_id > 0 AND YEAR(txn_date) = ? AND MONTH(txn_date) = ?", [$year, $month]);
+            error_log("Transactions with company assignments for {$year}-{$month}: " . $assignedCount['count']);
+            
+            // Get company totals for the selected month using the view for computed values
+            $companySummary = $db->fetchAll(
+                "SELECT 
+                    c.id,
+                    c.name,
+                    c.description,
+                    COUNT(vdt.id) as transaction_count,
+                    COALESCE(SUM(vdt.ca), 0) as total_ca,
+                    COALESCE(SUM(vdt.ag1), 0) as total_ag1,
+                    COALESCE(SUM(vdt.av1), 0) as total_av1,
+                    COALESCE(SUM(vdt.ag2), 0) as total_ag2,
+                    COALESCE(SUM(vdt.av2), 0) as total_av2,
+                    COALESCE(SUM(vdt.ga), 0) as total_ga,
+                    COALESCE(SUM(vdt.gai_ga), 0) as total_gai_ga,
+                    COALESCE(SUM(vdt.re), 0) as total_re,
+                    COALESCE(SUM(vdt.je), 0) as total_je,
+                    COALESCE(SUM(vdt.fi), 0) as total_fi,
+                    COALESCE(AVG(vdt.rate_ag1), 0) as avg_ag1_rate,
+                    COALESCE(AVG(vdt.rate_ag2), 0) as avg_ag2_rate
+                 FROM companies c
+                 LEFT JOIN daily_txn dt ON c.id = dt.company_id 
+                    AND YEAR(dt.txn_date) = ? 
+                    AND MONTH(dt.txn_date) = ?
+                 LEFT JOIN v_daily_txn vdt ON dt.id = vdt.id
+                 WHERE c.is_active = 1
+                 GROUP BY c.id, c.name, c.description
+                 ORDER BY total_fi DESC, c.name ASC",
+                [$year, $month]
+            );
+            
+            error_log("Company summary query returned " . count($companySummary) . " companies");
+            
+            // If no companies found, try a simpler query to show all active companies
+            if (empty($companySummary)) {
+                error_log("No companies found with transactions, showing all active companies");
+                $companySummary = $db->fetchAll(
+                    "SELECT 
+                        c.id,
+                        c.name,
+                        c.description,
+                        0 as transaction_count,
+                        0 as total_ca,
+                        0 as total_ag1,
+                        0 as total_av1,
+                        0 as total_ag2,
+                        0 as total_av2,
+                        0 as total_ga,
+                        0 as total_gai_ga,
+                        0 as total_re,
+                        0 as total_je,
+                        0 as total_fi,
+                        0 as avg_ag1_rate,
+                        0 as avg_ag2_rate
+                     FROM companies c
+                     WHERE c.is_active = 1
+                     ORDER BY c.name ASC"
+                );
+                error_log("Fallback query returned " . count($companySummary) . " companies");
+            }
+
+            // Format the data for display
+            foreach ($companySummary as &$company) {
+                $company['total_ca_formatted'] = Money::format($company['total_ca']);
+                $company['total_ag1_formatted'] = Money::format($company['total_ag1']);
+                $company['total_av1_formatted'] = Money::format($company['total_av1']);
+                $company['total_ag2_formatted'] = Money::format($company['total_ag2']);
+                $company['total_av2_formatted'] = Money::format($company['total_av2']);
+                $company['total_ga_formatted'] = Money::format($company['total_ga']);
+                $company['total_gai_ga_formatted'] = Money::format($company['total_gai_ga']);
+                $company['total_re_formatted'] = Money::format($company['total_re']);
+                $company['total_je_formatted'] = Money::format($company['total_je']);
+                $company['total_fi_formatted'] = Money::format($company['total_fi']);
+            }
+
+            return $companySummary;
+            
+        } catch (Exception $e) {
+            // If there's any database error, log it and return empty array
+            error_log("Company summary error: " . $e->getMessage());
+            return [];
+        }
     }
 }
 ?>

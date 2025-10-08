@@ -8,6 +8,9 @@ function appUrl($path) {
 ?>
 
 <style>
+/* GAI GA Purple Color */
+.text-purple { color: #8b5cf6; }
+
 /* Mobile Responsiveness for Daily Transactions */
 @media (max-width: 768px) {
     /* Stack header elements on mobile */
@@ -279,6 +282,7 @@ function appUrl($path) {
                                 <th class="text-end">AG2</th>
                                 <th class="text-end">AV2</th>
                                 <th class="text-end">GA</th>
+                                <th class="text-end">GAI GA</th>
                                 <th class="text-end">RE</th>
                                 <th class="text-end">JE</th>
                                 <th class="text-end">FI</th>
@@ -335,6 +339,7 @@ function appUrl($path) {
                                 <td class="text-end table-money"><?= Money::format($txn['ag2']) ?></td>
                                 <td class="text-end table-money"><?= Money::format($txn['av2']) ?></td>
                                 <td class="text-end table-money"><?= Money::format($txn['ga']) ?></td>
+                                <td class="text-end table-money text-purple"><?= Money::format($txn['gai_ga'] ?? 0) ?></td>
                                 <td class="text-end table-money"><?= Money::format($txn['re']) ?></td>
                                 <td class="text-end table-money"><?= Money::format($txn['je']) ?></td>
                                 <td class="text-end table-money fw-bold text-success"><?= Money::format($txn['fi']) ?></td>
@@ -389,6 +394,7 @@ function appUrl($path) {
                                 <td class="text-end table-money"><?= Money::format($data['totals']['total_ag2'] ?? 0) ?></td>
                                 <td class="text-end table-money"><?= Money::format($data['totals']['total_av2'] ?? 0) ?></td>
                                 <td class="text-end table-money"><?= Money::format($data['totals']['total_ga'] ?? 0) ?></td>
+                                <td class="text-end table-money text-purple"><?= Money::format($data['totals']['total_gai_ga'] ?? 0) ?></td>
                                 <td class="text-end table-money"><?= Money::format($data['totals']['total_re'] ?? 0) ?></td>
                                 <td class="text-end table-money"><?= Money::format($data['totals']['total_je'] ?? 0) ?></td>
                                 <td class="text-end table-money text-success"><?= Money::format($data['totals']['total_fi'] ?? 0) ?></td>
