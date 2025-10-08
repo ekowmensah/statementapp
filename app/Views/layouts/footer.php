@@ -300,44 +300,112 @@
 
         window.addEventListener('appinstalled', (e) => {
             console.log('PWA: App installed successfully');
+            
+            // Mark as installed in localStorage
+            localStorage.setItem('pwa-installed', 'true');
+            localStorage.setItem('pwa-install-date', new Date().toISOString());
+            
+            // Hide install button and show success message
             hideInstallButton();
             showInstallSuccess();
+            
+            // Clear deferred prompt
             deferredPrompt = null;
+            
+            // Clear any existing install prompts or notifications
+            document.querySelectorAll('.alert').forEach(alert => {
+                if (alert.textContent.includes('Install') || alert.textContent.includes('install')) {
+                    alert.remove();
+                }
+            });
         });
 
-        // Check if app is already installed
+        // Enhanced app installation detection
         window.addEventListener('load', () => {
-            if (window.matchMedia('(display-mode: standalone)').matches || 
-                window.navigator.standalone === true) {
-                console.log('PWA: App is running in standalone mode');
-                hideInstallButton();
-            } else {
-                // Track user engagement for faster prompt triggering
-                const engagementEvents = ['click', 'scroll', 'keydown', 'touchstart'];
-                const trackEngagement = () => {
-                    if (!userEngaged) {
-                        userEngaged = true;
-                        console.log('PWA: User engagement detected');
-                        // Remove listeners after first engagement
-                        engagementEvents.forEach(event => {
-                            document.removeEventListener(event, trackEngagement);
-                        });
-                    }
-                };
-                
-                engagementEvents.forEach(event => {
-                    document.addEventListener(event, trackEngagement, { once: true });
-                });
-                
-                // If no install prompt after 2 seconds, show manual install option
-                setTimeout(() => {
-                    if (!deferredPrompt && !installButton) {
-                        console.log('PWA: No install prompt detected, showing manual install option');
-                        showManualInstallOption();
-                    }
-                }, 2000); // Reduced from 3000ms to 2000ms
-            }
+            checkInstallationStatus();
         });
+
+        async function checkInstallationStatus() {
+            console.log('PWA: Checking installation status...');
+            
+            // Check multiple indicators of installation
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+            const isIOSStandalone = window.navigator.standalone === true;
+            const isInWebApk = document.referrer.includes('android-app://');
+            const isInstalledFlag = localStorage.getItem('pwa-installed') === 'true';
+            
+            // Check URL parameters that indicate PWA launch
+            const urlParams = new URLSearchParams(window.location.search);
+            const isPWALaunch = urlParams.has('utm_source') && urlParams.get('utm_source') === 'pwa';
+            
+            // Check for installed related apps (newer API)
+            let hasInstalledRelatedApps = false;
+            if ('getInstalledRelatedApps' in navigator) {
+                try {
+                    const relatedApps = await navigator.getInstalledRelatedApps();
+                    hasInstalledRelatedApps = relatedApps.length > 0;
+                    console.log('PWA: Related apps found:', relatedApps.length);
+                } catch (error) {
+                    console.log('PWA: getInstalledRelatedApps error:', error);
+                }
+            }
+            
+            // Check if running in TWA (Trusted Web Activity)
+            const isTWA = document.referrer.startsWith('android-app://') || 
+                         window.location.search.includes('utm_source=twa');
+            
+            console.log('PWA: Installation indicators:', {
+                isStandalone,
+                isIOSStandalone,
+                isInWebApk,
+                isInstalledFlag,
+                isPWALaunch,
+                hasInstalledRelatedApps,
+                isTWA,
+                displayMode: window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser',
+                userAgent: navigator.userAgent.substring(0, 100) + '...'
+            });
+            
+            // If any indicator shows the app is installed, hide install button
+            if (isStandalone || isIOSStandalone || isInWebApk || isInstalledFlag || 
+                isPWALaunch || hasInstalledRelatedApps || isTWA) {
+                console.log('PWA: App detected as installed');
+                hideInstallButton();
+                
+                // Mark as installed in localStorage for future visits
+                localStorage.setItem('pwa-installed', 'true');
+                localStorage.setItem('pwa-install-date', new Date().toISOString());
+                
+                return; // Exit early, don't show install prompts
+            }
+            
+            console.log('PWA: App not detected as installed, setting up install prompts');
+            
+            // Track user engagement for faster prompt triggering
+            const engagementEvents = ['click', 'scroll', 'keydown', 'touchstart'];
+            const trackEngagement = () => {
+                if (!userEngaged) {
+                    userEngaged = true;
+                    console.log('PWA: User engagement detected');
+                    // Remove listeners after first engagement
+                    engagementEvents.forEach(event => {
+                        document.removeEventListener(event, trackEngagement);
+                    });
+                }
+            };
+            
+            engagementEvents.forEach(event => {
+                document.addEventListener(event, trackEngagement, { once: true });
+            });
+            
+            // If no install prompt after 2 seconds, show manual install option
+            setTimeout(() => {
+                if (!deferredPrompt && !installButton && !localStorage.getItem('pwa-installed')) {
+                    console.log('PWA: No install prompt detected, showing manual install option');
+                    showManualInstallOption();
+                }
+            }, 2000);
+        }
 
         function showInstallButton() {
             // Create install button if it doesn't exist
@@ -440,10 +508,29 @@
         }
 
         function hideInstallButton() {
+            console.log('PWA: Hiding install button');
+            
+            // Remove the main install button
             if (installButton && installButton.parentNode) {
                 installButton.remove();
                 installButton = null;
             }
+            
+            // Remove any other install-related elements
+            document.querySelectorAll('.install-btn, .manual-install').forEach(btn => {
+                if (btn.parentNode) {
+                    btn.remove();
+                }
+            });
+            
+            // Remove install notifications
+            document.querySelectorAll('.alert').forEach(alert => {
+                if (alert.textContent.includes('Install') || 
+                    alert.textContent.includes('install') ||
+                    alert.textContent.includes('Add to Home')) {
+                    alert.remove();
+                }
+            });
         }
 
         function installApp() {
@@ -464,6 +551,46 @@
         function showInstallSuccess() {
             FormUtils.showSuccess('Daily Statement App installed successfully! You can now access it from your home screen.');
         }
+
+        // Add function to reset PWA installation state (for debugging/testing)
+        window.resetPWAInstallState = function() {
+            console.log('PWA: Resetting installation state');
+            localStorage.removeItem('pwa-installed');
+            localStorage.removeItem('pwa-install-date');
+            location.reload();
+        };
+
+        // Monitor for app uninstallation
+        window.addEventListener('beforeunload', () => {
+            // If the app is being closed from standalone mode, it might be uninstalled
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                // Don't reset the flag immediately, as this could be just a normal close
+                // The flag will be validated on next load
+            }
+        });
+
+        // Periodically check if the app is still considered installed
+        setInterval(async () => {
+            if (localStorage.getItem('pwa-installed') === 'true') {
+                // Double-check installation status
+                const isStillInstalled = window.matchMedia('(display-mode: standalone)').matches ||
+                                       window.navigator.standalone === true;
+                
+                if (!isStillInstalled && 'getInstalledRelatedApps' in navigator) {
+                    try {
+                        const relatedApps = await navigator.getInstalledRelatedApps();
+                        if (relatedApps.length === 0) {
+                            console.log('PWA: App appears to be uninstalled, resetting state');
+                            localStorage.removeItem('pwa-installed');
+                            localStorage.removeItem('pwa-install-date');
+                            // Don't reload automatically, just reset the state
+                        }
+                    } catch (error) {
+                        console.log('PWA: Error checking installation status:', error);
+                    }
+                }
+            }
+        }, 30000); // Check every 30 seconds
 
         function showInstallNotification() {
             const notification = document.createElement('div');
