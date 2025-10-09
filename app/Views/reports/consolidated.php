@@ -354,10 +354,10 @@ $metrics = $data['metrics'];
                                 <th class="text-end">AG2</th>
                                 <th class="text-end">AV2</th>
                                 <th class="text-end">GA</th>
-                                <th class="text-end">GAI GA</th>
                                 <th class="text-end">RE</th>
                                 <th class="text-end">JE</th>
                                 <th class="text-end">FI</th>
+                                <th class="text-end">GAI GA</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -371,10 +371,10 @@ $metrics = $data['metrics'];
                                 <td class="text-end"><?= Money::format($row['total_ag2']) ?></td>
                                 <td class="text-end"><?= Money::format($row['total_av2']) ?></td>
                                 <td class="text-end"><?= Money::format($row['total_ga']) ?></td>
-                                <td class="text-end text-purple"><?= Money::format($row['total_gai_ga'] ?? 0) ?></td>
                                 <td class="text-end"><?= Money::format($row['total_re']) ?></td>
                                 <td class="text-end"><?= Money::format($row['total_je']) ?></td>
                                 <td class="text-end fw-bold text-success"><?= Money::format($row['total_fi']) ?></td>
+                                <td class="text-end text-purple"><?= Money::format($row['total_gai_ga'] ?? 0) ?></td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>

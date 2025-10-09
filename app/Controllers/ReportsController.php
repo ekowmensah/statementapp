@@ -40,10 +40,14 @@ class ReportsController
         // Get report types
         $reportTypes = $this->getReportTypes();
 
+        // Get companies for filter
+        $companies = $this->companyModel->getActive();
+
         $data = [
             'title' => 'Professional Reports & Analytics - Daily Statement App',
             'date_range' => $dateRange,
             'report_types' => $reportTypes,
+            'companies' => $companies,
             'default_start_date' => $dateRange['min_date'] ?? date('Y-m-01'),
             'default_end_date' => $dateRange['max_date'] ?? date('Y-m-d')
         ];
@@ -205,9 +209,10 @@ class ReportsController
             $startDate = $_GET['start_date'] ?? date('Y-m-01');
             $endDate = $_GET['end_date'] ?? date('Y-m-d');
             $groupBy = $_GET['group_by'] ?? 'day';
+            $companyId = $_GET['company_id'] ?? '';
             $export = $_GET['export'] ?? false;
 
-            error_log("Report parameters: type=$reportType, start=$startDate, end=$endDate, group=$groupBy");
+            error_log("Report parameters: type=$reportType, start=$startDate, end=$endDate, group=$groupBy, company=$companyId");
 
             // Test database connection
             $testQuery = "SELECT COUNT(*) as count FROM v_daily_txn LIMIT 1";
@@ -225,7 +230,7 @@ class ReportsController
             }
 
             // Generate report based on type
-            $reportData = $this->generateReport($reportType, $startDate, $endDate, $groupBy);
+            $reportData = $this->generateReport($reportType, $startDate, $endDate, $groupBy, $companyId);
 
             error_log("Report data generated successfully");
 
@@ -325,23 +330,23 @@ class ReportsController
     /**
      * Generate report based on type
      */
-    private function generateReport($reportType, $startDate, $endDate, $groupBy)
+    private function generateReport($reportType, $startDate, $endDate, $groupBy, $companyId = '')
     {
         switch ($reportType) {
             case 'financial_summary':
-                return $this->generateFinancialSummary($startDate, $endDate, $groupBy);
+                return $this->generateFinancialSummary($startDate, $endDate, $groupBy, $companyId);
             case 'profit_analysis':
-                return $this->generateProfitAnalysis($startDate, $endDate, $groupBy);
+                return $this->generateProfitAnalysis($startDate, $endDate, $groupBy, $companyId);
             case 'comparative_analysis':
-                return $this->generateComparativeAnalysis($startDate, $endDate, $groupBy);
+                return $this->generateComparativeAnalysis($startDate, $endDate, $groupBy, $companyId);
             case 'ca_analysis':
-                return $this->generateCAAnalysis($startDate, $endDate, $groupBy);
+                return $this->generateCAAnalysis($startDate, $endDate, $groupBy, $companyId);
             case 'ga_analysis':
-                return $this->generateGAAnalysis($startDate, $endDate, $groupBy);
+                return $this->generateGAAnalysis($startDate, $endDate, $groupBy, $companyId);
             case 're_analysis':
-                return $this->generateREAnalysis($startDate, $endDate, $groupBy);
+                return $this->generateREAnalysis($startDate, $endDate, $groupBy, $companyId);
             case 'je_analysis':
-                return $this->generateJEAnalysis($startDate, $endDate, $groupBy);
+                return $this->generateJEAnalysis($startDate, $endDate, $groupBy, $companyId);
             default:
                 throw new Exception('Invalid report type');
         }
@@ -350,14 +355,15 @@ class ReportsController
     /**
      * Generate Financial Summary Report
      */
-    private function generateFinancialSummary($startDate, $endDate, $groupBy)
+    private function generateFinancialSummary($startDate, $endDate, $groupBy, $companyId = '')
     {
         try {
-            $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate);
+            $params = [$startDate, $endDate];
+            $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate, $companyId, $params);
             error_log("Financial Summary SQL: " . $sql);
-            error_log("Parameters: " . json_encode([$startDate, $endDate]));
+            error_log("Parameters: " . json_encode($params));
             
-            $data = $this->db->fetchAll($sql, [$startDate, $endDate]);
+            $data = $this->db->fetchAll($sql, $params);
             error_log("Query returned " . count($data) . " rows");
 
             $chartData = $this->processChartData($data, ['ca', 'fi', 'ga', 'je'], $groupBy);
@@ -382,10 +388,11 @@ class ReportsController
     /**
      * Generate Profit Analysis Report
      */
-    private function generateProfitAnalysis($startDate, $endDate, $groupBy)
+    private function generateProfitAnalysis($startDate, $endDate, $groupBy, $companyId = '')
     {
-        $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate);
-        $data = $this->db->fetchAll($sql, [$startDate, $endDate]);
+        $params = [$startDate, $endDate];
+        $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate, $companyId, $params);
+        $data = $this->db->fetchAll($sql, $params);
 
         $chartData = $this->processChartData($data, ['fi', 're'], $groupBy);
         $summary = $this->calculateSummaryStats($data, ['fi', 're', 'ca']);
@@ -408,7 +415,7 @@ class ReportsController
     /**
      * Generate Comparative Analysis Report
      */
-    private function generateComparativeAnalysis($startDate, $endDate, $groupBy)
+    private function generateComparativeAnalysis($startDate, $endDate, $groupBy, $companyId = '')
     {
         try {
             error_log("Comparative Analysis: start=$startDate, end=$endDate, group=$groupBy");
@@ -485,10 +492,22 @@ class ReportsController
     /**
      * Build grouped SQL query
      */
-    private function buildGroupedQuery($groupBy, $startDate, $endDate, $includeRates = false)
+    private function buildGroupedQuery($groupBy, $startDate, $endDate, $companyId = '', &$params = null, $includeRates = false)
     {
         $dateFormat = $this->getDateFormat($groupBy);
         $rateFields = $includeRates ? ', AVG(rate_ag1) as avg_rate_ag1, AVG(rate_ag2) as avg_rate_ag2' : '';
+        
+        $whereConditions = ["txn_date BETWEEN ? AND ?"];
+        if ($params === null) {
+            $params = [$startDate, $endDate];
+        }
+        
+        if ($companyId) {
+            $whereConditions[] = "company_id = ?";
+            $params[] = $companyId;
+        }
+        
+        $whereClause = implode(' AND ', $whereConditions);
         
         return "SELECT 
                     {$dateFormat} as period_key,
@@ -500,11 +519,12 @@ class ReportsController
                     SUM(ag2) as total_ag2,
                     SUM(re) as total_re,
                     SUM(fi) as total_fi,
+                    SUM(gai_ga) as total_gai_ga,
                     AVG(ca) as avg_ca,
                     AVG(fi) as avg_fi
                     {$rateFields}
                 FROM v_daily_txn 
-                WHERE txn_date BETWEEN ? AND ?
+                WHERE {$whereClause}
                 GROUP BY {$dateFormat}
                 ORDER BY period_key";
     }
@@ -911,11 +931,12 @@ class ReportsController
     /**
      * Generate CA (Customer Acquisition) Analysis Report
      */
-    private function generateCAAnalysis($startDate, $endDate, $groupBy)
+    private function generateCAAnalysis($startDate, $endDate, $groupBy, $companyId = '')
     {
         try {
-            $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate);
-            $data = $this->db->fetchAll($sql, [$startDate, $endDate]);
+            $params = [$startDate, $endDate];
+            $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate, $companyId, $params);
+            $data = $this->db->fetchAll($sql, $params);
             
             $chartData = $this->processChartData($data, ['ca'], $groupBy);
             $summary = $this->calculateSummaryStats($data, ['ca']);
@@ -950,11 +971,12 @@ class ReportsController
     /**
      * Generate GA (General & Administrative) Analysis Report
      */
-    private function generateGAAnalysis($startDate, $endDate, $groupBy)
+    private function generateGAAnalysis($startDate, $endDate, $groupBy, $companyId = '')
     {
         try {
-            $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate);
-            $data = $this->db->fetchAll($sql, [$startDate, $endDate]);
+            $params = [$startDate, $endDate];
+            $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate, $companyId, $params);
+            $data = $this->db->fetchAll($sql, $params);
             
             // Debug logging for GA analysis
             error_log("GA Analysis: Retrieved " . count($data) . " rows for date range $startDate to $endDate");
@@ -1041,11 +1063,12 @@ class ReportsController
     /**
      * Generate RE (Revenue Enhancement) Analysis Report
      */
-    private function generateREAnalysis($startDate, $endDate, $groupBy)
+    private function generateREAnalysis($startDate, $endDate, $groupBy, $companyId = '')
     {
         try {
-            $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate);
-            $data = $this->db->fetchAll($sql, [$startDate, $endDate]);
+            $params = [$startDate, $endDate];
+            $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate, $companyId, $params);
+            $data = $this->db->fetchAll($sql, $params);
             
             $chartData = $this->processChartData($data, ['re'], $groupBy);
             $summary = $this->calculateSummaryStats($data, ['re']);
@@ -1080,11 +1103,12 @@ class ReportsController
     /**
      * Generate JE (Joint Expenses) Analysis Report
      */
-    private function generateJEAnalysis($startDate, $endDate, $groupBy)
+    private function generateJEAnalysis($startDate, $endDate, $groupBy, $companyId = '')
     {
         try {
-            $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate);
-            $data = $this->db->fetchAll($sql, [$startDate, $endDate]);
+            $params = [$startDate, $endDate];
+            $sql = $this->buildGroupedQuery($groupBy, $startDate, $endDate, $companyId, $params);
+            $data = $this->db->fetchAll($sql, $params);
             
             $chartData = $this->processChartData($data, ['je'], $groupBy);
             $summary = $this->calculateSummaryStats($data, ['je']);
@@ -1846,7 +1870,7 @@ class ReportsController
         // Detailed data
         if ($data['export_options']['include_details']) {
             fputcsv($output, ['DETAILED BREAKDOWN']);
-            fputcsv($output, ['Period', 'Transactions', 'CA', 'AG1', 'AV1', 'AG2', 'AV2', 'GA', 'GAI GA', 'RE', 'JE', 'FI']);
+            fputcsv($output, ['Period', 'Transactions', 'CA', 'AG1', 'AV1', 'AG2', 'AV2', 'GA', 'RE', 'JE', 'FI', 'GAI GA']);
             
             foreach ($data['consolidated_data'] as $row) {
                 fputcsv($output, [
@@ -1858,10 +1882,10 @@ class ReportsController
                     number_format($row['total_ag2'], 2),
                     number_format($row['total_av2'], 2),
                     number_format($row['total_ga'], 2),
-                    number_format($row['total_gai_ga'] ?? 0, 2),
                     number_format($row['total_re'], 2),
                     number_format($row['total_je'], 2),
-                    number_format($row['total_fi'], 2)
+                    number_format($row['total_fi'], 2),
+                    number_format($row['total_gai_ga'] ?? 0, 2)
                 ]);
             }
         }
@@ -2080,7 +2104,7 @@ class ReportsController
         // Detailed data
         if ($data['export_options']['include_details']) {
             fputcsv($output, ['DETAILED BREAKDOWN']);
-            fputcsv($output, ['Period', 'Transactions', 'CA', 'AG1', 'AV1', 'AG2', 'AV2', 'GA', 'GAI GA', 'RE', 'JE', 'FI']);
+            fputcsv($output, ['Period', 'Transactions', 'CA', 'AG1', 'AV1', 'AG2', 'AV2', 'GA', 'RE', 'JE', 'FI', 'GAI GA']);
             
             foreach ($data['consolidated_data'] as $row) {
                 fputcsv($output, [
@@ -2092,10 +2116,10 @@ class ReportsController
                     'GH₵' . number_format($row['total_ag2'], 2),
                     'GH₵' . number_format($row['total_av2'], 2),
                     'GH₵' . number_format($row['total_ga'], 2),
-                    'GH₵' . number_format($row['total_gai_ga'] ?? 0, 2),
                     'GH₵' . number_format($row['total_re'], 2),
                     'GH₵' . number_format($row['total_je'], 2),
-                    'GH₵' . number_format($row['total_fi'], 2)
+                    'GH₵' . number_format($row['total_fi'], 2),
+                    'GH₵' . number_format($row['total_gai_ga'] ?? 0, 2)
                 ]);
             }
             fputcsv($output, []); // Empty row
@@ -2231,10 +2255,10 @@ class ReportsController
                 $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $row['total_ag2'] . '</Data></Cell>';
                 $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $row['total_av2'] . '</Data></Cell>';
                 $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $row['total_ga'] . '</Data></Cell>';
-                $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . ($row['total_gai_ga'] ?? 0) . '</Data></Cell>';
                 $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $row['total_re'] . '</Data></Cell>';
                 $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $row['total_je'] . '</Data></Cell>';
                 $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $row['total_fi'] . '</Data></Cell>';
+                $xml .= '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . ($row['total_gai_ga'] ?? 0) . '</Data></Cell>';
                 $xml .= '</Row>' . "\n";
             }
         }

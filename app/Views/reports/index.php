@@ -205,7 +205,7 @@ function appUrl($path) {
                                max="<?= $data['date_range']['max_date'] ?>" required>
                     </div>
                     
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="group_by" class="form-label">Group By</label>
                         <select class="form-select" id="group_by" name="group_by">
                             <option value="day">Daily</option>
@@ -215,7 +215,19 @@ function appUrl($path) {
                         </select>
                     </div>
                     
-                    <div class="col-md-3">
+                    <div class="col-md-2">
+                        <label for="company_id" class="form-label">Company</label>
+                        <select class="form-select" id="company_id" name="company_id">
+                            <option value="">All Companies</option>
+                            <?php foreach ($data['companies'] as $company): ?>
+                                <option value="<?= $company['id'] ?>">
+                                    <?= htmlspecialchars($company['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
                         <label class="form-label">&nbsp;</label>
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary">

@@ -461,10 +461,10 @@ function appUrl($path) {
                                 <th class="text-end">AG2</th>
                                 <th class="text-end">AV2</th>
                                 <th class="text-end">GA</th>
-                                <th class="text-end">GAI GA</th>
                                 <th class="text-end">RE</th>
                                 <th class="text-end">JE</th>
                                 <th class="text-end">FI</th>
+                                <th class="text-end">GAI GA</th>
                             </tr>
                         </thead>
                         <tbody id="companyTableBody">
@@ -500,9 +500,6 @@ function appUrl($path) {
                                     <strong class="text-warning"><?= $company['total_ga_formatted'] ?></strong>
                                 </td>
                                 <td class="text-end">
-                                    <strong class="text-purple"><?= Money::format($company['total_gai_ga']) ?></strong>
-                                </td>
-                                <td class="text-end">
                                     <strong class="text-dark"><?= Money::format($company['total_re']) ?></strong>
                                 </td>
                                 <td class="text-end">
@@ -510,6 +507,9 @@ function appUrl($path) {
                                 </td>
                                 <td class="text-end">
                                     <strong class="text-success"><?= $company['total_fi_formatted'] ?></strong>
+                                </td>
+                                <td class="text-end">
+                                    <strong class="text-purple"><?= Money::format($company['total_gai_ga']) ?></strong>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -559,12 +559,6 @@ function appUrl($path) {
                                     echo Money::format($totalGA);
                                     ?>
                                 </td>
-                                <td class="text-end text-purple">
-                                    <?php 
-                                    $totalGAIGA = array_sum(array_column($data['company_summary'], 'total_gai_ga'));
-                                    echo Money::format($totalGAIGA);
-                                    ?>
-                                </td>
                                 <td class="text-end text-dark">
                                     <?php 
                                     $totalRE = array_sum(array_column($data['company_summary'], 'total_re'));
@@ -581,6 +575,12 @@ function appUrl($path) {
                                     <?php 
                                     $totalFI = array_sum(array_column($data['company_summary'], 'total_fi'));
                                     echo Money::format($totalFI);
+                                    ?>
+                                </td>
+                                <td class="text-end text-purple">
+                                    <?php 
+                                    $totalGAIGA = array_sum(array_column($data['company_summary'], 'total_gai_ga'));
+                                    echo Money::format($totalGAIGA);
                                     ?>
                                 </td>
                             </tr>
