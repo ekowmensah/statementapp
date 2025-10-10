@@ -124,7 +124,7 @@
             }
             
             .sidebar.show {
-                transform: translateX(0);
+                transform: translateX(0) !important;
                 box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
             }
             
@@ -444,6 +444,56 @@
             background-color: rgba(0, 0, 0, 0.05);
         }
     </style>
+    
+    <!-- Mobile Menu Fallback Script -->
+    <script>
+        // Immediate mobile menu toggle function
+        function toggleMobileMenu() {
+            console.log('toggleMobileMenu called');
+            const sidebar = document.querySelector('#sidebar');
+            if (sidebar) {
+                console.log('Sidebar found, toggling show class');
+                sidebar.classList.toggle('show');
+                console.log('Sidebar classes after toggle:', sidebar.className);
+            } else {
+                console.error('Sidebar not found for mobile menu toggle');
+            }
+        }
+        
+        // Ensure mobile menu works even if other scripts fail
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Mobile menu fallback: DOM loaded');
+            const mobileToggle = document.querySelector('#mobile-menu-toggle');
+            const sidebar = document.querySelector('#sidebar');
+            
+            if (mobileToggle && sidebar) {
+                console.log('Mobile menu fallback: Elements found, setting up click handler');
+                
+                // Remove any existing onclick to avoid double-binding
+                mobileToggle.onclick = function(e) {
+                    e.preventDefault();
+                    console.log('Mobile menu fallback: Click handler triggered');
+                    sidebar.classList.toggle('show');
+                    return false;
+                };
+                
+                // Close sidebar when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (window.innerWidth < 992 && 
+                        sidebar.classList.contains('show') &&
+                        !sidebar.contains(e.target) && 
+                        !mobileToggle.contains(e.target)) {
+                        sidebar.classList.remove('show');
+                    }
+                });
+            } else {
+                console.error('Mobile menu fallback: Elements not found', {
+                    toggle: !!mobileToggle,
+                    sidebar: !!sidebar
+                });
+            }
+        });
+    </script>
 </head>
 
 <body>
@@ -466,7 +516,7 @@
     <div class="wrapper d-flex flex-column min-vh-100 bg-light">
         <header class="header header-sticky mb-4">
             <div class="container-fluid">
-                <button class="header-toggler px-md-0 me-md-3 d-md-none" type="button" id="mobile-menu-toggle">
+                <button class="header-toggler px-md-0 me-md-3 d-md-none" type="button" id="mobile-menu-toggle" onclick="toggleMobileMenu()">
                     <i class="bi bi-list"></i>
                 </button>
                 

@@ -117,42 +117,64 @@
 
         // Initialize when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
-            setupAjax();
+            console.log('DOM Content Loaded - Starting initialization');
             
-            // Handle mobile sidebar toggle
-            const mobileMenuToggle = document.querySelector('#mobile-menu-toggle');
-            const sidebar = document.querySelector('#sidebar');
-            
-            if (mobileMenuToggle && sidebar) {
-                console.log('Setting up mobile menu toggle');
+            try {
+                setupAjax();
+                console.log('AJAX setup completed');
                 
-                mobileMenuToggle.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    console.log('Mobile menu toggle clicked');
-                    sidebar.classList.toggle('show');
-                });
+                // Handle mobile sidebar toggle
+                const mobileMenuToggle = document.querySelector('#mobile-menu-toggle');
+                const sidebar = document.querySelector('#sidebar');
                 
-                // Close sidebar when clicking outside on mobile
-                document.addEventListener('click', function(e) {
-                    if (window.innerWidth < 992 && 
-                        !sidebar.contains(e.target) && 
-                        !mobileMenuToggle.contains(e.target) &&
-                        sidebar.classList.contains('show')) {
-                        sidebar.classList.remove('show');
-                    }
-                });
-                
-                // Close sidebar when window is resized to desktop
-                window.addEventListener('resize', function() {
-                    if (window.innerWidth >= 992 && sidebar.classList.contains('show')) {
-                        sidebar.classList.remove('show');
-                    }
-                });
-            } else {
-                console.error('Mobile menu elements not found:', {
+                console.log('Mobile menu elements:', {
                     toggle: !!mobileMenuToggle,
-                    sidebar: !!sidebar
+                    sidebar: !!sidebar,
+                    toggleElement: mobileMenuToggle,
+                    sidebarElement: sidebar
                 });
+                
+                if (mobileMenuToggle && sidebar) {
+                    console.log('Setting up mobile menu toggle');
+                    
+                    // Test if click event works
+                    mobileMenuToggle.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        console.log('Mobile menu toggle clicked - current classes:', sidebar.className);
+                        sidebar.classList.toggle('show');
+                        console.log('Mobile menu toggle after - new classes:', sidebar.className);
+                    });
+                    
+                    // Close sidebar when clicking outside on mobile
+                    document.addEventListener('click', function(e) {
+                        if (window.innerWidth < 992 && 
+                            !sidebar.contains(e.target) && 
+                            !mobileMenuToggle.contains(e.target) &&
+                            sidebar.classList.contains('show')) {
+                            console.log('Closing sidebar - clicked outside');
+                            sidebar.classList.remove('show');
+                        }
+                    });
+                    
+                    // Close sidebar when window is resized to desktop
+                    window.addEventListener('resize', function() {
+                        if (window.innerWidth >= 992 && sidebar.classList.contains('show')) {
+                            console.log('Closing sidebar - window resized to desktop');
+                            sidebar.classList.remove('show');
+                        }
+                    });
+                    
+                    console.log('Mobile menu setup completed successfully');
+                } else {
+                    console.error('Mobile menu elements not found:', {
+                        toggle: !!mobileMenuToggle,
+                        sidebar: !!sidebar,
+                        toggleQuery: document.querySelector('#mobile-menu-toggle'),
+                        sidebarQuery: document.querySelector('#sidebar')
+                    });
+                }
+            } catch (error) {
+                console.error('Error during mobile menu initialization:', error);
             }
             
             // Auto-dismiss alerts after 5 seconds
