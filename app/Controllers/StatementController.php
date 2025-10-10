@@ -36,11 +36,15 @@ class StatementController
         
         // Get statement templates
         $templates = $this->getStatementTemplates();
+        
+        // Get companies for filtering
+        $companies = $this->db->fetchAll("SELECT id, name FROM companies ORDER BY name ASC");
 
         $data = [
             'title' => 'Professional Statement Generator - Daily Statement App',
             'date_range' => $dateRange,
             'templates' => $templates,
+            'companies' => $companies,
             'default_start_date' => $dateRange['min_date'] ?? date('Y-m-01'),
             'default_end_date' => $dateRange['max_date'] ?? date('Y-m-d'),
             'can_export' => Auth::can('export_csv')
@@ -62,6 +66,7 @@ class StatementController
             $endDate = $_GET['end_date'] ?? date('Y-m-d');
             $template = $_GET['template'] ?? 'comprehensive';
             $groupBy = $_GET['group_by'] ?? 'day';
+            $companyId = $_GET['company_id'] ?? '';
             $export = $_GET['export'] ?? false;
 
             // Debug logging
@@ -77,7 +82,7 @@ class StatementController
             error_log("Database test query result: " . json_encode($testQuery));
 
             // Generate statement data
-            $statementData = $this->generateStatementData($startDate, $endDate, $template, $groupBy);
+            $statementData = $this->generateStatementData($startDate, $endDate, $template, $groupBy, $companyId);
 
             // Handle export
             if ($export) {
@@ -182,10 +187,10 @@ class StatementController
     /**
      * Generate comprehensive statement data
      */
-    private function generateStatementData($startDate, $endDate, $template, $groupBy)
+    private function generateStatementData($startDate, $endDate, $template, $groupBy, $companyId = '')
     {
         // Get transactions for the period
-        $transactions = $this->getTransactionsForPeriod($startDate, $endDate);
+        $transactions = $this->getTransactionsForPeriod($startDate, $endDate, $companyId);
         
         // Calculate totals and statistics
         $totals = $this->calculatePeriodTotals($transactions);
@@ -226,15 +231,24 @@ class StatementController
     /**
      * Get transactions for specified period
      */
-    private function getTransactionsForPeriod($startDate, $endDate)
+    private function getTransactionsForPeriod($startDate, $endDate, $companyId = '')
     {
         try {
+            $whereConditions = ["txn_date BETWEEN ? AND ?"];
+            $params = [$startDate, $endDate];
+            
+            if ($companyId) {
+                $whereConditions[] = "company_id = ?";
+                $params[] = $companyId;
+            }
+            
+            $whereClause = implode(' AND ', $whereConditions);
             $sql = "SELECT * FROM v_daily_txn 
-                    WHERE txn_date BETWEEN ? AND ? 
+                    WHERE {$whereClause}
                     ORDER BY txn_date ASC";
             
-            error_log("Executing query: $sql with params: $startDate, $endDate");
-            $result = $this->db->fetchAll($sql, [$startDate, $endDate]);
+            error_log("Executing query: $sql with params: " . implode(', ', $params));
+            $result = $this->db->fetchAll($sql, $params);
             error_log("Query returned " . count($result) . " rows");
             
             return $result;
@@ -559,7 +573,7 @@ class StatementController
         return [
             'performance_summary' => sprintf(
                 'Generated %s in final income with a profit margin of %.1f%%',
-                '$' . number_format($totals['fi'], 2),
+                'GH₵' . number_format($totals['fi'], 2),
                 $totals['profit_margin']
             )
         ];

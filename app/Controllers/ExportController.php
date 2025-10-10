@@ -60,7 +60,7 @@ class ExportController
             $row = [];
             foreach ($transaction as $key => $value) {
                 // Format money values
-                if (in_array($key, ['CA', 'AG1', 'AV1', 'AG2', 'AV2', 'GA', 'RE', 'JE', 'FI'])) {
+                if (in_array($key, ['CA', 'AG1', 'AV1', 'AG2', 'AV2', 'GA', 'RE', 'JE', 'FI', 'GAI GA'])) {
                     $row[] = Money::formatForInput($value);
                 } else {
                     $row[] = $value;
@@ -155,6 +155,8 @@ class ExportController
                         <th>RE</th>
                         <th>JE</th>
                         <th>FI</th>
+                        <th>GAI GA</th>
+                        <th class="text-left">Company</th>
                         <th class="text-left">Note</th>
                     </tr>
                 </thead>
@@ -171,6 +173,8 @@ class ExportController
                         <td><?= Money::format($txn['re']) ?></td>
                         <td><?= Money::format($txn['je']) ?></td>
                         <td><?= Money::format($txn['fi']) ?></td>
+                        <td><?= Money::format($txn['gai_ga'] ?? 0) ?></td>
+                        <td class="text-left"><?= htmlspecialchars($txn['company_name'] ?? '') ?></td>
                         <td class="text-left"><?= htmlspecialchars($txn['note'] ?? '') ?></td>
                     </tr>
                     <?php endforeach; ?>
@@ -187,6 +191,8 @@ class ExportController
                         <td><?= Money::format($totals['total_re']) ?></td>
                         <td><?= Money::format($totals['total_je']) ?></td>
                         <td><?= Money::format($totals['total_fi']) ?></td>
+                        <td><?= Money::format($totals['total_gai_ga'] ?? 0) ?></td>
+                        <td class="text-left">-</td>
                         <td class="text-left"><?= $totals['days_count'] ?> days</td>
                     </tr>
                     <?php endif; ?>

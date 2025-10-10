@@ -418,20 +418,23 @@ class DailyTxn
     {
         return $this->db->fetchAll(
             "SELECT 
-                 txn_date as 'Date',
-                 ca as 'CA',
-                 ag1 as 'AG1',
-                 av1 as 'AV1',
-                 ag2 as 'AG2',
-                 av2 as 'AV2',
-                 ga as 'GA',
-                 re as 'RE',
-                 je as 'JE',
-                 fi as 'FI',
-                 note as 'Note'
-             FROM v_daily_txn 
-             WHERE txn_date BETWEEN ? AND ? 
-             ORDER BY txn_date ASC",
+                 v.txn_date as 'Date',
+                 v.ca as 'CA',
+                 v.ag1 as 'AG1',
+                 v.av1 as 'AV1',
+                 v.ag2 as 'AG2',
+                 v.av2 as 'AV2',
+                 v.ga as 'GA',
+                 v.re as 'RE',
+                 v.je as 'JE',
+                 v.fi as 'FI',
+                 v.gai_ga as 'GAI GA',
+                 c.name as 'COMPANY',
+                 v.note as 'Note'
+             FROM v_daily_txn v
+             LEFT JOIN companies c ON v.company_id = c.id
+             WHERE v.txn_date BETWEEN ? AND ? 
+             ORDER BY v.txn_date ASC",
             [$startDate, $endDate]
         );
     }
