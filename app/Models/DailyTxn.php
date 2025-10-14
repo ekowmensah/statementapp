@@ -117,8 +117,8 @@ class DailyTxn
         $sequenceNumber = $this->getNextSequenceNumber($data['txn_date']);
         
         return $this->db->insert(
-            "INSERT INTO daily_txn (txn_date, sequence_number, ca, ga, je, gai_ga, company_id, note, created_by) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO daily_txn (txn_date, sequence_number, ca, ga, je, gai_ga, company_id, note, rate_ag1, rate_ag2, created_by) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 $data['txn_date'],
                 $sequenceNumber,
@@ -128,6 +128,8 @@ class DailyTxn
                 $data['gai_ga'] ?? 0.00, // GAI GA field with default 0
                 $data['company_id'], // Now required, no null fallback
                 $data['note'] ?? null,
+                $data['rate_ag1'] ?? 0.21, // Default AG1 rate (21%)
+                $data['rate_ag2'] ?? 0.04, // Default AG2 rate (4%)
                 $data['created_by']
             ]
         );
@@ -189,6 +191,16 @@ class DailyTxn
         if (isset($data['note'])) {
             $fields[] = 'note = ?';
             $params[] = $data['note'];
+        }
+        
+        if (isset($data['rate_ag1'])) {
+            $fields[] = 'rate_ag1 = ?';
+            $params[] = $data['rate_ag1'];
+        }
+        
+        if (isset($data['rate_ag2'])) {
+            $fields[] = 'rate_ag2 = ?';
+            $params[] = $data['rate_ag2'];
         }
         
         if (isset($data['updated_by'])) {
