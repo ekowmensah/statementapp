@@ -90,6 +90,8 @@ class DailyTxnController
             'pagination' => $pagination,
             'totals' => $totals,
             'total_pages' => $pagination['total_pages'],
+            'current_page' => $pagination['current_page'],
+            'total_count' => $pagination['total_count'],
             'can_create' => Auth::can('create_daily'),
             'can_edit' => Auth::can('edit_daily'),
             'can_delete' => Auth::can('delete_daily'),
